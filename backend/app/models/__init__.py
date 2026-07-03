@@ -1,0 +1,211 @@
+import enum
+import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    JSON,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.core.database import Base
+
+
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def new_uuid() -> str:
+    return str(uuid.uuid4())
+
+
+class Project(Base):
+    __tablename__ = "projects"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    base_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    login_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    allowed_domains_json: Mapped[list] = mapped_column(JSON, default=list)
+    seed_urls_json: Mapped[list] = mapped_column(JSON, default=list)
+    crawl_status: Mapped[str] = mapped_column(String(50), default="idle")
+    crawl_job_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    crawl_pages_count: Mapped[int] = mapped_column(Integer, default=0)
+    crawl_elements_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    credentials: Mapped["ProjectCredential | None"] = relationship(back_populates="project")
+    pages: Mapped[list["Page"]] = relationship(back_populates="project")
+    flows: Mapped[list["Flow"]] = relationship(back_populates="project")
+    generated_tests: Mapped[list["GeneratedTest"]] = relationship(back_populates="project")
+    test_runs: Mapped[list["TestRun"]] = relationship(back_populates="project")
+
+
+class ProjectCredential(Base):
+    __tablename__ = "project_credentials"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), unique=True, index=True)
+    username: Mapped[str] = mapped_column(String(255), nullable=False)
+    encrypted_password: Mapped[str] = mapped_column(Text, nullable=False)
+    auth_strategy: Mapped[str] = mapped_column(String(50), default="form")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    project: Mapped["Project"] = relationship(back_populates="credentials")
+
+
+class Page(Base):
+    __tablename__ = "pages"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    title: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    dom_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    screenshot_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    project: Mapped["Project"] = relationship(back_populates="pages")
+    elements: Mapped[list["Element"]] = relationship(back_populates="page")
+
+
+class Element(Base):
+    __tablename__ = "elements"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    page_id: Mapped[str] = mapped_column(ForeignKey("pages.id"), index=True)
+    element_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    text_content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    aria_label: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    selector_primary: Mapped[str] = mapped_column(String(1024), nullable=False)
+    selector_fallbacks_json: Mapped[list] = mapped_column(JSON, default=list)
+    dom_signature_json: Mapped[dict] = mapped_column(JSON, default=dict)
+
+    page: Mapped["Page"] = relationship(back_populates="elements")
+
+
+class PageTransition(Base):
+    __tablename__ = "page_transitions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    from_page_id: Mapped[str] = mapped_column(ForeignKey("pages.id"), index=True)
+    to_page_id: Mapped[str] = mapped_column(ForeignKey("pages.id"), index=True)
+    trigger_element_id: Mapped[str | None] = mapped_column(ForeignKey("elements.id"), nullable=True)
+    action_type: Mapped[str] = mapped_column(String(50), default="click")
+
+
+class Flow(Base):
+    __tablename__ = "flows"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    risk_level: Mapped[str] = mapped_column(String(20), default="low")
+    confidence_score: Mapped[float] = mapped_column(Float, default=0.5)
+    requires_auth: Mapped[bool] = mapped_column(Boolean, default=False)
+    destructive: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    project: Mapped["Project"] = relationship(back_populates="flows")
+    steps: Mapped[list["FlowStep"]] = relationship(back_populates="flow", order_by="FlowStep.step_order")
+
+
+class FlowStep(Base):
+    __tablename__ = "flow_steps"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    flow_id: Mapped[str] = mapped_column(ForeignKey("flows.id"), index=True)
+    step_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    action_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    target_element_id: Mapped[str | None] = mapped_column(ForeignKey("elements.id"), nullable=True)
+    expected_result_json: Mapped[dict] = mapped_column(JSON, default=dict)
+
+    flow: Mapped["Flow"] = relationship(back_populates="steps")
+
+
+class GeneratedTestStatus(str, enum.Enum):
+    DRAFT = "draft"
+    READY = "ready"
+    OUTDATED = "outdated"
+
+
+class GeneratedTest(Base):
+    __tablename__ = "generated_tests"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    flow_id: Mapped[str | None] = mapped_column(ForeignKey("flows.id"), nullable=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String(20), default=GeneratedTestStatus.DRAFT.value)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    project: Mapped["Project"] = relationship(back_populates="generated_tests")
+    flow: Mapped["Flow | None"] = relationship()
+    results: Mapped[list["TestRunResult"]] = relationship(back_populates="generated_test")
+    healing_suggestions: Mapped[list["HealingSuggestion"]] = relationship(back_populates="generated_test")
+
+
+class TestRun(Base):
+    __tablename__ = "test_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    run_type: Mapped[str] = mapped_column(String(50), default="manual")
+    status: Mapped[str] = mapped_column(String(50), default="queued")
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    triggered_by: Mapped[str] = mapped_column(String(100), default="user")
+
+    project: Mapped["Project"] = relationship(back_populates="test_runs")
+    results: Mapped[list["TestRunResult"]] = relationship(back_populates="test_run")
+
+
+class TestRunResult(Base):
+    __tablename__ = "test_run_results"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    test_run_id: Mapped[str] = mapped_column(ForeignKey("test_runs.id"), index=True)
+    generated_test_id: Mapped[str] = mapped_column(ForeignKey("generated_tests.id"), index=True)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    failure_category: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    screenshot_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    trace_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    video_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    test_run: Mapped["TestRun"] = relationship(back_populates="results")
+    generated_test: Mapped["GeneratedTest"] = relationship(back_populates="results")
+    healing_suggestions: Mapped[list["HealingSuggestion"]] = relationship(back_populates="test_run_result")
+
+
+class HealingSuggestion(Base):
+    __tablename__ = "healing_suggestions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    generated_test_id: Mapped[str] = mapped_column(ForeignKey("generated_tests.id"), index=True)
+    test_run_result_id: Mapped[str | None] = mapped_column(
+        ForeignKey("test_run_results.id"), nullable=True
+    )
+    failed_selector: Mapped[str] = mapped_column(String(1024), nullable=False)
+    suggested_selector: Mapped[str] = mapped_column(String(1024), nullable=False)
+    confidence_score: Mapped[float] = mapped_column(Float, default=0.5)
+    rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    generated_test: Mapped["GeneratedTest"] = relationship(back_populates="healing_suggestions")
+    test_run_result: Mapped["TestRunResult | None"] = relationship(back_populates="healing_suggestions")
