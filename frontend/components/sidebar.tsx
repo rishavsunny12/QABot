@@ -11,9 +11,12 @@ import {
   Settings,
   Search,
   Bot,
+  LayoutGrid,
 } from "lucide-react";
+import { ProjectSwitcher } from "@/components/project-switcher";
 
 const links = [
+  { href: "/", label: "Workspace", icon: LayoutGrid },
   { href: "/setup", label: "Project Setup", icon: Settings },
   { href: "/discovery", label: "Discovery", icon: Search },
   { href: "/flows", label: "Flow Map", icon: Map },
@@ -34,6 +37,7 @@ export function Sidebar() {
           <div className="text-xs text-gray-400">Autonomous Testing</div>
         </div>
       </div>
+      <ProjectSwitcher />
       <nav className="flex flex-1 flex-col gap-1">
         {links.map(({ href, label, icon: Icon }) => (
           <Link
@@ -41,7 +45,9 @@ export function Sidebar() {
             href={href}
             className={clsx(
               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-              pathname === href || pathname.startsWith(href + "/")
+              (href === "/"
+                ? pathname === "/"
+                : pathname === href || pathname.startsWith(href + "/"))
                 ? "bg-blue-600/20 text-blue-300"
                 : "text-gray-300 hover:bg-white/5"
             )}

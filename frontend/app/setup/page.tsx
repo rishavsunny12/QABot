@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useActiveProject } from "@/lib/hooks";
 
 export default function SetupPage() {
-  const { data: project, isLoading } = useActiveProject();
+  const { data: project, projects, isLoading, setActiveProjectId } = useActiveProject();
   const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     name: "",
     base_url: "https://demo.playwright.dev/todomvc",
@@ -17,6 +18,10 @@ export default function SetupPage() {
     allowed_domains: "demo.playwright.dev",
     seed_urls: "https://demo.playwright.dev/todomvc",
   });
+
+  useEffect(() => {
+    if (window.location.search.includes("new=1")) setShowForm(true);
+  }, []);
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -29,7 +34,11 @@ export default function SetupPage() {
         allowed_domains: form.allowed_domains.split(",").map((d) => d.trim()).filter(Boolean),
         seed_urls: form.seed_urls.split(",").map((d) => d.trim()).filter(Boolean),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      setActiveProjectId(created.id);
+      setShowForm(false);
+    },
   });
 
   const crawlMutation = useMutation({
@@ -41,31 +50,45 @@ export default function SetupPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Project Setup</h1>
-        <p className="mt-2 text-gray-400">
-          Configure your target app, credentials, and domain allowlist.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Project Setup</h1>
+          <p className="mt-2 text-gray-400">
+            Configure target apps, credentials, and domain allowlists.
+          </p>
+        </div>
+        <button className="btn-secondary" onClick={() => setShowForm((v) => !v)}>
+          {showForm ? "Cancel" : "New Project"}
+        </button>
       </div>
 
-      {project ? (
-        <div className="card space-y-4">
-          <h2 className="text-xl font-semibold">Active Project</h2>
-          <div className="grid gap-2 text-sm">
-            <div><span className="text-gray-400">Name:</span> {project.name}</div>
-            <div><span className="text-gray-400">Base URL:</span> {project.base_url}</div>
-            <div><span className="text-gray-400">Crawl status:</span> {project.crawl_status}</div>
-            <div><span className="text-gray-400">Pages:</span> {project.crawl_pages_count}</div>
+      {projects.length > 0 && (
+        <div className="card">
+          <h2 className="mb-3 text-sm font-medium text-gray-400">Your Projects</h2>
+          <div className="space-y-2">
+            {projects.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setActiveProjectId(p.id)}
+                className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                  p.id === project?.id
+                    ? "border-blue-500/50 bg-blue-600/10"
+                    : "border-[hsl(var(--border))] hover:bg-white/5"
+                }`}
+              >
+                <span>
+                  <span className="font-medium">{p.name}</span>
+                  <span className="ml-2 text-xs text-gray-400">{p.base_url}</span>
+                </span>
+                <span className="badge-neutral capitalize">{p.crawl_status}</span>
+              </button>
+            ))}
           </div>
-          <button
-            className="btn-primary"
-            onClick={() => crawlMutation.mutate()}
-            disabled={crawlMutation.isPending || project.crawl_status === "running"}
-          >
-            {crawlMutation.isPending ? "Starting..." : "Start Discovery Crawl"}
-          </button>
         </div>
-      ) : (
+      )}
+
+      {showForm && (
         <form
           className="card space-y-4"
           onSubmit={(e) => {
@@ -73,6 +96,7 @@ export default function SetupPage() {
             createMutation.mutate();
           }}
         >
+          <h2 className="text-xl font-semibold">Create New Project</h2>
           <div>
             <label className="mb-1 block text-sm text-gray-400">Project Name</label>
             <input
@@ -138,6 +162,31 @@ export default function SetupPage() {
             {createMutation.isPending ? "Creating..." : "Create Project"}
           </button>
         </form>
+      )}
+
+      {project && !showForm && (
+        <div className="card space-y-4">
+          <h2 className="text-xl font-semibold">Active Project: {project.name}</h2>
+          <div className="grid gap-2 text-sm">
+            <div><span className="text-gray-400">Base URL:</span> {project.base_url}</div>
+            <div><span className="text-gray-400">Crawl status:</span> {project.crawl_status}</div>
+            <div><span className="text-gray-400">Pages:</span> {project.crawl_pages_count}</div>
+            <div><span className="text-gray-400">Elements:</span> {project.crawl_elements_count}</div>
+          </div>
+          <button
+            className="btn-primary"
+            onClick={() => crawlMutation.mutate()}
+            disabled={crawlMutation.isPending || project.crawl_status === "running"}
+          >
+            {crawlMutation.isPending ? "Starting..." : "Start Discovery Crawl"}
+          </button>
+        </div>
+      )}
+
+      {!project && !showForm && (
+        <div className="card text-gray-400">
+          No project selected. Create a new project to get started.
+        </div>
       )}
     </div>
   );

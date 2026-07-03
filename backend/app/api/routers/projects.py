@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.core.encryption import credential_encryption
 from app.models import Project, ProjectCredential
 from app.schemas import ProjectCreate, ProjectResponse, ProjectUpdate
+from app.services.project_service import project_service
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -117,3 +118,12 @@ async def update_project(
 
     await db.refresh(project, attribute_names=["credentials"])
     return _to_response(project)
+
+
+@router.delete("/{project_id}", status_code=204)
+async def delete_project(project_id: str, db: AsyncSession = Depends(get_db)):
+    try:
+        await project_service.delete_project(db, project_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return None

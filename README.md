@@ -202,7 +202,7 @@ pytest backend/tests runner/tests -v
 
 ## Roadmap
 
-- [ ] Multi-project workspace UI
+- [x] Multi-project workspace UI
 - [ ] Scheduled test runs
 - [ ] Visual regression testing
 - [ ] Browser farm / parallel execution

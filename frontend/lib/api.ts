@@ -67,6 +67,8 @@ export const api = {
     request<import("./types").HealingSuggestion>(`/api/healing-suggestions/${id}/reject`, {
       method: "POST",
     }),
+  deleteProject: (id: string) =>
+    request<void>(`/api/projects/${id}`, { method: "DELETE" }),
   screenshotUrl: (projectId: string, pageId: string) =>
     `${API_URL}/api/projects/${projectId}/screenshots/${pageId}`,
   artifactUrl: (resultId: string, type: string) =>
