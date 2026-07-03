@@ -13,6 +13,7 @@ import {
   Bot,
   LayoutGrid,
   CalendarClock,
+  ScanEye,
 } from "lucide-react";
 import { ProjectSwitcher } from "@/components/project-switcher";
 
@@ -23,6 +24,7 @@ const links = [
   { href: "/flows", label: "Flow Map", icon: Map },
   { href: "/tests", label: "Test Catalog", icon: FlaskConical },
   { href: "/schedules", label: "Schedules", icon: CalendarClock },
+  { href: "/visual-regression", label: "Visual Regression", icon: ScanEye },
   { href: "/runs", label: "Run History", icon: History },
   { href: "/settings", label: "Settings", icon: LayoutDashboard },
 ];

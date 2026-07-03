@@ -121,7 +121,7 @@ async def test_schedule_lifecycle():
 async def test_flow_inference_and_test_generation():
     """Verify flow inference and test generation services with synthetic crawl data."""
     from app.core.database import AsyncSessionLocal
-    from app.models import Element, Flow, FlowStep, Page, Project
+    from app.models import Element, Page, Project
     from app.services.flow_inference_service import flow_inference_service
     from app.services.test_generation_service import test_generation_service
 
