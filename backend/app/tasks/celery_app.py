@@ -15,6 +15,12 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    beat_schedule={
+        "check-due-test-schedules": {
+            "task": "schedules.check_due",
+            "schedule": 60.0,
+        },
+    },
 )
 
 celery_app.autodiscover_tasks(["app.tasks"])

@@ -14,6 +14,7 @@ from app.models import (
     ProjectCredential,
     TestRun,
     TestRunResult,
+    TestSchedule,
 )
 from app.services.artifact_service import artifact_service
 
@@ -44,6 +45,7 @@ class ProjectService:
             delete(TestRunResult).where(TestRunResult.test_run_id.in_(run_ids))
         )
         await db.execute(delete(TestRun).where(TestRun.project_id == project_id))
+        await db.execute(delete(TestSchedule).where(TestSchedule.project_id == project_id))
         await db.execute(delete(GeneratedTest).where(GeneratedTest.project_id == project_id))
         await db.execute(delete(FlowStep).where(FlowStep.flow_id.in_(flow_ids)))
         await db.execute(delete(Flow).where(Flow.project_id == project_id))

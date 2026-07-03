@@ -183,3 +183,32 @@ class FlowGraphResponse(BaseModel):
     nodes: list[GraphNode]
     edges: list[GraphEdge]
     flows: list[FlowResponse]
+
+
+class ScheduleCreate(BaseModel):
+    name: str
+    interval_minutes: int = Field(ge=5, le=10080)
+    test_ids: list[str] | None = None
+    enabled: bool = True
+
+
+class ScheduleUpdate(BaseModel):
+    name: str | None = None
+    interval_minutes: int | None = Field(default=None, ge=5, le=10080)
+    test_ids: list[str] | None = None
+    enabled: bool | None = None
+
+
+class ScheduleResponse(BaseModel):
+    id: str
+    project_id: str
+    name: str
+    interval_minutes: int
+    test_ids: list[str] | None
+    enabled: bool
+    last_run_at: datetime | None
+    next_run_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}

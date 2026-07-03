@@ -22,6 +22,7 @@ class TestExecutionService:
         project_id: str,
         test_ids: list[str] | None = None,
         triggered_by: str = "user",
+        run_type: str = "manual",
     ) -> TestRun:
         query = select(GeneratedTest).where(GeneratedTest.project_id == project_id)
         if test_ids:
@@ -33,7 +34,7 @@ class TestExecutionService:
         project = (await db.execute(select(Project).where(Project.id == project_id))).scalar_one()
         test_run = TestRun(
             project_id=project_id,
-            run_type="manual",
+            run_type=run_type,
             status="running",
             started_at=datetime.now(timezone.utc),
             triggered_by=triggered_by,

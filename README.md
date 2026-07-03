@@ -184,6 +184,13 @@ uvicorn app.main:app --reload
 celery -A app.tasks.celery_app worker --loglevel=info
 ```
 
+### Scheduler (Celery Beat)
+```bash
+celery -A app.tasks.celery_app beat --loglevel=info
+```
+
+Or use Docker Compose which starts `worker` and `beat` services automatically.
+
 ### Frontend
 ```bash
 cd frontend
@@ -203,7 +210,7 @@ pytest backend/tests runner/tests -v
 ## Roadmap
 
 - [x] Multi-project workspace UI
-- [ ] Scheduled test runs
+- [x] Scheduled test runs
 - [ ] Visual regression testing
 - [ ] Browser farm / parallel execution
 - [ ] Enterprise SSO and team roles

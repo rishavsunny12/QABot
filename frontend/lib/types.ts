@@ -117,3 +117,16 @@ export interface HealingSuggestion {
   approved: boolean | null;
   created_at: string;
 }
+
+export interface TestSchedule {
+  id: string;
+  project_id: string;
+  name: string;
+  interval_minutes: number;
+  test_ids: string[] | null;
+  enabled: boolean;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  created_at: string;
+  updated_at: string;
+}

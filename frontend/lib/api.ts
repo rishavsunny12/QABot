@@ -69,6 +69,22 @@ export const api = {
     }),
   deleteProject: (id: string) =>
     request<void>(`/api/projects/${id}`, { method: "DELETE" }),
+  listSchedules: (projectId: string) =>
+    request<import("./types").TestSchedule[]>(`/api/projects/${projectId}/schedules`),
+  createSchedule: (projectId: string, data: Record<string, unknown>) =>
+    request<import("./types").TestSchedule>(`/api/projects/${projectId}/schedules`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateSchedule: (id: string, data: Record<string, unknown>) =>
+    request<import("./types").TestSchedule>(`/api/schedules/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteSchedule: (id: string) =>
+    request<void>(`/api/schedules/${id}`, { method: "DELETE" }),
+  toggleSchedule: (id: string) =>
+    request<import("./types").TestSchedule>(`/api/schedules/${id}/toggle`, { method: "POST" }),
   screenshotUrl: (projectId: string, pageId: string) =>
     `${API_URL}/api/projects/${projectId}/screenshots/${pageId}`,
   artifactUrl: (resultId: string, type: string) =>

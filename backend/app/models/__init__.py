@@ -48,6 +48,26 @@ class Project(Base):
     flows: Mapped[list["Flow"]] = relationship(back_populates="project")
     generated_tests: Mapped[list["GeneratedTest"]] = relationship(back_populates="project")
     test_runs: Mapped[list["TestRun"]] = relationship(back_populates="project")
+    schedules: Mapped[list["TestSchedule"]] = relationship(back_populates="project")
+
+
+class TestSchedule(Base):
+    __tablename__ = "test_schedules"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    interval_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=60)
+    test_ids_json: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    project: Mapped["Project"] = relationship(back_populates="schedules")
 
 
 class ProjectCredential(Base):
