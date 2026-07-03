@@ -211,7 +211,7 @@ pytest backend/tests runner/tests -v
 
 - [x] Multi-project workspace UI
 - [x] Scheduled test runs
-- [ ] Visual regression testing
+- [x] Visual regression testing
 - [ ] Browser farm / parallel execution
 - [ ] Enterprise SSO and team roles
 - [ ] Billing and usage metering

@@ -212,3 +212,47 @@ class ScheduleResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class VisualBaselineResponse(BaseModel):
+    id: str
+    project_id: str
+    page_id: str | None
+    url: str
+    label: str | None
+    screenshot_path: str
+    captured_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class VisualComparisonResultResponse(BaseModel):
+    id: str
+    run_id: str
+    baseline_id: str
+    page_url: str
+    baseline_path: str
+    current_path: str
+    diff_path: str | None
+    diff_percent: float
+    status: str
+
+    model_config = {"from_attributes": True}
+
+
+class VisualComparisonRunResponse(BaseModel):
+    id: str
+    project_id: str
+    status: str
+    threshold_percent: float
+    pass_count: int
+    fail_count: int
+    started_at: datetime
+    completed_at: datetime | None
+    results: list[VisualComparisonResultResponse] = Field(default_factory=list)
+
+    model_config = {"from_attributes": True}
+
+
+class VisualRunRequest(BaseModel):
+    threshold_percent: float = Field(default=1.0, ge=0.0, le=100.0)

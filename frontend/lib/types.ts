@@ -130,3 +130,37 @@ export interface TestSchedule {
   created_at: string;
   updated_at: string;
 }
+
+export interface VisualBaseline {
+  id: string;
+  project_id: string;
+  page_id: string | null;
+  url: string;
+  label: string | null;
+  screenshot_path: string;
+  captured_at: string;
+}
+
+export interface VisualComparisonResult {
+  id: string;
+  run_id: string;
+  baseline_id: string;
+  page_url: string;
+  baseline_path: string;
+  current_path: string;
+  diff_path: string | null;
+  diff_percent: number;
+  status: string;
+}
+
+export interface VisualComparisonRun {
+  id: string;
+  project_id: string;
+  status: string;
+  threshold_percent: number;
+  pass_count: number;
+  fail_count: number;
+  started_at: string;
+  completed_at: string | null;
+  results?: VisualComparisonResult[];
+}

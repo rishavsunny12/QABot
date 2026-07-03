@@ -49,6 +49,54 @@ class Project(Base):
     generated_tests: Mapped[list["GeneratedTest"]] = relationship(back_populates="project")
     test_runs: Mapped[list["TestRun"]] = relationship(back_populates="project")
     schedules: Mapped[list["TestSchedule"]] = relationship(back_populates="project")
+    visual_baselines: Mapped[list["VisualBaseline"]] = relationship(back_populates="project")
+    visual_runs: Mapped[list["VisualComparisonRun"]] = relationship(back_populates="project")
+
+
+class VisualBaseline(Base):
+    __tablename__ = "visual_baselines"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    page_id: Mapped[str | None] = mapped_column(ForeignKey("pages.id"), nullable=True)
+    url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    screenshot_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    project: Mapped["Project"] = relationship(back_populates="visual_baselines")
+
+
+class VisualComparisonRun(Base):
+    __tablename__ = "visual_comparison_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    status: Mapped[str] = mapped_column(String(50), default="running")
+    threshold_percent: Mapped[float] = mapped_column(Float, default=1.0)
+    pass_count: Mapped[int] = mapped_column(Integer, default=0)
+    fail_count: Mapped[int] = mapped_column(Integer, default=0)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    project: Mapped["Project"] = relationship(back_populates="visual_runs")
+    results: Mapped[list["VisualComparisonResult"]] = relationship(back_populates="run")
+
+
+class VisualComparisonResult(Base):
+    __tablename__ = "visual_comparison_results"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    run_id: Mapped[str] = mapped_column(ForeignKey("visual_comparison_runs.id"), index=True)
+    baseline_id: Mapped[str] = mapped_column(ForeignKey("visual_baselines.id"), index=True)
+    page_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    baseline_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    current_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    diff_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    diff_percent: Mapped[float] = mapped_column(Float, default=0.0)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+
+    run: Mapped["VisualComparisonRun"] = relationship(back_populates="results")
 
 
 class TestSchedule(Base):

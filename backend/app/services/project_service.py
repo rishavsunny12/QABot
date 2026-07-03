@@ -15,6 +15,9 @@ from app.models import (
     TestRun,
     TestRunResult,
     TestSchedule,
+    VisualBaseline,
+    VisualComparisonResult,
+    VisualComparisonRun,
 )
 from app.services.artifact_service import artifact_service
 
@@ -46,6 +49,13 @@ class ProjectService:
         )
         await db.execute(delete(TestRun).where(TestRun.project_id == project_id))
         await db.execute(delete(TestSchedule).where(TestSchedule.project_id == project_id))
+        await db.execute(delete(VisualComparisonResult).where(
+            VisualComparisonResult.run_id.in_(
+                select(VisualComparisonRun.id).where(VisualComparisonRun.project_id == project_id)
+            )
+        ))
+        await db.execute(delete(VisualComparisonRun).where(VisualComparisonRun.project_id == project_id))
+        await db.execute(delete(VisualBaseline).where(VisualBaseline.project_id == project_id))
         await db.execute(delete(GeneratedTest).where(GeneratedTest.project_id == project_id))
         await db.execute(delete(FlowStep).where(FlowStep.flow_id.in_(flow_ids)))
         await db.execute(delete(Flow).where(Flow.project_id == project_id))

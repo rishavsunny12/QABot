@@ -85,6 +85,26 @@ export const api = {
     request<void>(`/api/schedules/${id}`, { method: "DELETE" }),
   toggleSchedule: (id: string) =>
     request<import("./types").TestSchedule>(`/api/schedules/${id}/toggle`, { method: "POST" }),
+  captureVisualBaselines: (projectId: string) =>
+    request<import("./types").VisualBaseline[]>(
+      `/api/projects/${projectId}/visual-baselines/capture`,
+      { method: "POST" }
+    ),
+  listVisualBaselines: (projectId: string) =>
+    request<import("./types").VisualBaseline[]>(`/api/projects/${projectId}/visual-baselines`),
+  runVisualRegression: (projectId: string, thresholdPercent = 1.0) =>
+    request<{ job_id: string; status: string }>(
+      `/api/projects/${projectId}/visual-regression/run`,
+      { method: "POST", body: JSON.stringify({ threshold_percent: thresholdPercent }) }
+    ),
+  listVisualRuns: (projectId: string) =>
+    request<import("./types").VisualComparisonRun[]>(
+      `/api/projects/${projectId}/visual-regression/runs`
+    ),
+  getVisualRun: (runId: string) =>
+    request<import("./types").VisualComparisonRun>(`/api/visual-regression/runs/${runId}`),
+  visualArtifactUrl: (resultId: string, type: "baseline" | "current" | "diff") =>
+    `${API_URL}/api/visual-regression/results/${resultId}/artifacts/${type}`,
   screenshotUrl: (projectId: string, pageId: string) =>
     `${API_URL}/api/projects/${projectId}/screenshots/${pageId}`,
   artifactUrl: (resultId: string, type: string) =>

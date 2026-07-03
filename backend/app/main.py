@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import crawl, healing, projects, runs, schedules, tests
+from app.api.routers import crawl, healing, projects, runs, schedules, tests, visual_regression
 from app.core.config import settings
 from app.core.database import Base, engine
 from app.services.artifact_service import artifact_service
@@ -36,6 +36,7 @@ app.include_router(tests.router, prefix="/api")
 app.include_router(runs.router, prefix="/api")
 app.include_router(healing.router, prefix="/api")
 app.include_router(schedules.router, prefix="/api")
+app.include_router(visual_regression.router, prefix="/api")
 
 
 @app.get("/health")

@@ -1,6 +1,5 @@
 """Live verification of Playwright crawl and schedule processing."""
 
-import asyncio
 
 import pytest
 
@@ -8,9 +7,8 @@ from app.core.database import AsyncSessionLocal
 from app.models import Project
 from app.services.crawler_service import crawler_service
 from app.services.flow_inference_service import flow_inference_service
-from app.services.schedule_service import compute_next_run, schedule_service
+from app.services.schedule_service import schedule_service
 from app.services.test_generation_service import test_generation_service
-from app.services.test_execution_service import test_execution_service
 from datetime import datetime, timezone, timedelta
 
 
