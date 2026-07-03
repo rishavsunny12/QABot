@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.access import authorize_project
+from app.api.billing_helpers import enforce_team_quota
 from app.core.auth_deps import AuthenticatedUser, get_current_user
 from app.core.database import get_db
 from app.core.encryption import credential_encryption
@@ -51,6 +52,8 @@ async def create_project(
         membership = await access_service.get_membership(db, auth.user.id, team_id)
         if not membership or membership.role not in {TeamRole.MEMBER.value, TeamRole.ADMIN.value, TeamRole.OWNER.value}:
             raise HTTPException(status_code=403, detail="Cannot create projects in this team")
+
+    await enforce_team_quota(db, team_id, "projects", quantity=1)
 
     project = Project(
         name=payload.name,

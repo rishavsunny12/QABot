@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.logging import get_logger
 from app.models import Element, Page, PageTransition, Project
 from app.services.artifact_service import artifact_service
+from app.services.billing_service import billing_service
 from app.services.auth_session_service import auth_session_service
 from playwright_utils.crawler import PlaywrightCrawler
 
@@ -84,6 +85,14 @@ class CrawlerService:
         project.crawl_status = "completed"
         project.crawl_pages_count = crawl_result["pages_count"]
         project.crawl_elements_count = crawl_result["elements_count"]
+        if project.team_id:
+            await billing_service.record_usage(
+                db,
+                project.team_id,
+                "crawl_pages",
+                quantity=crawl_result["pages_count"],
+                project_id=project_id,
+            )
         await db.commit()
 
         logger.log(

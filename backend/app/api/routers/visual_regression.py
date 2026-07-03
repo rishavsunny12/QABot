@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.access import authorize_project
+from app.api.billing_helpers import enforce_team_quota, record_team_usage
 from app.core.auth_deps import AuthenticatedUser, get_current_user
 from app.core.database import get_db
 from app.models import TeamRole, VisualComparisonResult
@@ -74,12 +75,15 @@ async def start_visual_run(
     auth: AuthenticatedUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await authorize_project(db, auth, project_id, TeamRole.MEMBER)
+    project = await authorize_project(db, auth, project_id, TeamRole.MEMBER)
+    await enforce_team_quota(db, project.team_id, "visual_comparisons", quantity=1)
     threshold = payload.threshold_percent if payload else 1.0
     baselines = await visual_regression_service.list_baselines(db, project_id)
     if not baselines:
         raise HTTPException(status_code=400, detail="No visual baselines. Capture baselines first.")
     task = run_visual_comparison_task.delay(project_id, threshold)
+    await record_team_usage(db, project.team_id, "visual_comparisons", project_id=project_id)
+    await db.commit()
     return {"job_id": task.id, "status": "queued", "threshold_percent": threshold}
 
 

@@ -46,6 +46,32 @@ export interface TeamMember {
   role: string;
 }
 
+export interface BillingPlan {
+  slug: string;
+  name: string;
+  price_cents: number;
+  limits: {
+    test_runs?: number | null;
+    crawl_pages?: number | null;
+    ai_calls?: number | null;
+    visual_comparisons?: number | null;
+    projects?: number | null;
+  };
+}
+
+export interface MetricUsage {
+  used: number;
+  limit: number | null;
+}
+
+export interface TeamBilling {
+  team_id: string;
+  plan: BillingPlan;
+  period_start: string;
+  period_end: string;
+  usage: Record<string, MetricUsage>;
+}
+
 export interface CrawlStatus {
   status: string;
   job_id: string | null;

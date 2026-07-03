@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     oidc_client_secret: str = ""
     oidc_discovery_url: str = ""
     oidc_redirect_uri: str = "http://localhost:8000/api/auth/callback"
+    billing_enforcement: bool = True
+    stripe_webhook_secret: str = ""
 
 
 settings = Settings()

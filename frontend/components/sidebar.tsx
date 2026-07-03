@@ -15,6 +15,7 @@ import {
   CalendarClock,
   ScanEye,
   LogOut,
+  CreditCard,
 } from "lucide-react";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { TeamSwitcher } from "@/components/team-switcher";
@@ -29,6 +30,7 @@ const links = [
   { href: "/schedules", label: "Schedules", icon: CalendarClock },
   { href: "/visual-regression", label: "Visual Regression", icon: ScanEye },
   { href: "/runs", label: "Run History", icon: History },
+  { href: "/billing", label: "Billing", icon: CreditCard },
   { href: "/settings", label: "Settings", icon: LayoutDashboard },
 ];
 
