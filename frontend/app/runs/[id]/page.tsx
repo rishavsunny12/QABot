@@ -26,6 +26,12 @@ export default function RunDetailPage({ params }: { params: { id: string } }) {
         {run && (
           <p className="mt-2 text-gray-400">
             {run.pass_count} passed, {run.fail_count} failed — {run.status}
+            {run.execution_mode && (
+              <span className="ml-2 text-xs">
+                ({run.execution_mode} mode
+                {run.parallel_workers ? `, ${run.parallel_workers} workers` : ""})
+              </span>
+            )}
           </p>
         )}
       </div>

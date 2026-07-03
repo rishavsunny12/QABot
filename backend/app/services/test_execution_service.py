@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.logging import get_logger
 from app.models import GeneratedTest, Project, TestRun, TestRunResult
 from app.services.artifact_service import artifact_service
@@ -14,7 +16,67 @@ logger = get_logger("TestExecutionService")
 
 
 class TestExecutionService:
-    """Queue and execute Playwright tests."""
+    """Queue and execute Playwright tests locally or across a Celery worker farm."""
+
+    def resolve_parallel_workers(self, project: Project) -> int:
+        workers = project.parallel_workers or settings.default_parallel_workers
+        return max(1, min(workers, settings.max_parallel_workers))
+
+    def resolve_execution_mode(self, project: Project) -> str:
+        mode = project.execution_mode or "local"
+        return mode if mode in {"local", "farm"} else "local"
+
+    async def prepare_run(
+        self,
+        db: AsyncSession,
+        project_id: str,
+        test_ids: list[str] | None = None,
+        triggered_by: str = "user",
+        run_type: str = "manual",
+    ) -> tuple[TestRun, Project, list[GeneratedTest]]:
+        query = select(GeneratedTest).where(GeneratedTest.project_id == project_id)
+        if test_ids:
+            query = query.where(GeneratedTest.id.in_(test_ids))
+        tests = (await db.execute(query)).scalars().all()
+        if not tests:
+            raise ValueError("No tests found to run")
+
+        project = (await db.execute(select(Project).where(Project.id == project_id))).scalar_one()
+        parallel_workers = self.resolve_parallel_workers(project)
+        execution_mode = self.resolve_execution_mode(project)
+
+        test_run = TestRun(
+            project_id=project_id,
+            run_type=run_type,
+            status="running",
+            started_at=datetime.now(timezone.utc),
+            triggered_by=triggered_by,
+            parallel_workers=parallel_workers,
+            execution_mode=execution_mode,
+        )
+        db.add(test_run)
+        await db.flush()
+        await db.commit()
+        return test_run, project, list(tests)
+
+    async def run_tests_local(
+        self,
+        db: AsyncSession,
+        test_run: TestRun,
+        project: Project,
+        tests: list[GeneratedTest],
+    ) -> TestRun:
+        run_dir = artifact_service.run_dir(test_run.id)
+        spec_paths = [str(artifact_service.resolve_path(t.file_path)) for t in tests]
+        workers = test_run.parallel_workers or 1
+        results = execute_specs(
+            spec_paths,
+            run_dir,
+            base_url=project.base_url,
+            max_workers=workers,
+        )
+        await self._persist_results(db, test_run, tests, results)
+        return test_run
 
     async def run_tests(
         self,
@@ -24,28 +86,50 @@ class TestExecutionService:
         triggered_by: str = "user",
         run_type: str = "manual",
     ) -> TestRun:
-        query = select(GeneratedTest).where(GeneratedTest.project_id == project_id)
-        if test_ids:
-            query = query.where(GeneratedTest.id.in_(test_ids))
-        tests = (await db.execute(query)).scalars().all()
-        if not tests:
-            raise ValueError("No tests found to run")
-
-        project = (await db.execute(select(Project).where(Project.id == project_id))).scalar_one()
-        test_run = TestRun(
-            project_id=project_id,
-            run_type=run_type,
-            status="running",
-            started_at=datetime.now(timezone.utc),
-            triggered_by=triggered_by,
+        test_run, project, tests = await self.prepare_run(
+            db, project_id, test_ids, triggered_by, run_type
         )
-        db.add(test_run)
-        await db.flush()
+        if test_run.execution_mode == "farm":
+            from app.tasks.test_tasks import dispatch_farm_run
 
-        run_dir = artifact_service.run_dir(test_run.id)
-        spec_paths = [str(artifact_service.resolve_path(t.file_path)) for t in tests]
-        results = execute_specs(spec_paths, run_dir, base_url=project.base_url)
+            dispatch_farm_run(test_run, project, tests)
+            return test_run
+        return await self.run_tests_local(db, test_run, project, tests)
 
+    async def finalize_farm_run(
+        self,
+        db: AsyncSession,
+        run_id: str,
+        raw_results: list[dict[str, Any]],
+    ) -> TestRun:
+        test_run = (await db.execute(select(TestRun).where(TestRun.id == run_id))).scalar_one()
+        tests = (
+            await db.execute(
+                select(GeneratedTest).where(GeneratedTest.project_id == test_run.project_id)
+            )
+        ).scalars().all()
+        tests_by_id = {t.id: t for t in tests}
+
+        ordered_tests: list[GeneratedTest] = []
+        ordered_results: list[dict[str, Any]] = []
+        for item in raw_results:
+            if not item:
+                continue
+            test_id = item.get("test_id")
+            if test_id and test_id in tests_by_id:
+                ordered_tests.append(tests_by_id[test_id])
+                ordered_results.append(item)
+
+        await self._persist_results(db, test_run, ordered_tests, ordered_results)
+        return test_run
+
+    async def _persist_results(
+        self,
+        db: AsyncSession,
+        test_run: TestRun,
+        tests: list[GeneratedTest],
+        results: list[dict[str, Any]],
+    ) -> None:
         pass_count = 0
         fail_count = 0
         for test, result in zip(tests, results, strict=False):
@@ -87,9 +171,10 @@ class TestExecutionService:
         logger.log(
             "run_completed",
             f"Run completed: {pass_count} passed, {fail_count} failed",
-            project_id=project_id,
+            project_id=test_run.project_id,
+            execution_mode=test_run.execution_mode,
+            parallel_workers=test_run.parallel_workers,
         )
-        return test_run
 
 
 test_execution_service = TestExecutionService()

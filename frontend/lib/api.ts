@@ -109,6 +109,8 @@ export const api = {
     `${API_URL}/api/projects/${projectId}/screenshots/${pageId}`,
   artifactUrl: (resultId: string, type: string) =>
     `${API_URL}/api/results/${resultId}/artifacts/${type}`,
+  getExecutionWorkers: () =>
+    request<import("./types").ExecutionWorkers>("/api/execution/workers"),
 };
 
 export { API_URL };

@@ -9,6 +9,8 @@ export interface Project {
   crawl_pages_count: number;
   crawl_elements_count: number;
   has_credentials: boolean;
+  parallel_workers: number;
+  execution_mode: "local" | "farm";
   created_at: string;
   updated_at: string;
 }
@@ -87,9 +89,18 @@ export interface TestRun {
   started_at: string | null;
   completed_at: string | null;
   triggered_by: string;
+  parallel_workers: number | null;
+  execution_mode: string | null;
   pass_count: number;
   fail_count: number;
   total_count: number;
+}
+
+export interface ExecutionWorkers {
+  mode: string;
+  active_workers: number;
+  max_parallel_workers: number;
+  default_parallel_workers: number;
 }
 
 export interface TestRunResult {

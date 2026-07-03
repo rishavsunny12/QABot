@@ -24,6 +24,8 @@ def _to_response(project: Project) -> ProjectResponse:
         crawl_pages_count=project.crawl_pages_count,
         crawl_elements_count=project.crawl_elements_count,
         has_credentials=project.credentials is not None,
+        parallel_workers=project.parallel_workers,
+        execution_mode=project.execution_mode,
         created_at=project.created_at,
         updated_at=project.updated_at,
     )
@@ -98,6 +100,10 @@ async def update_project(
         project.allowed_domains_json = payload.allowed_domains
     if payload.seed_urls is not None:
         project.seed_urls_json = payload.seed_urls
+    if payload.parallel_workers is not None:
+        project.parallel_workers = payload.parallel_workers
+    if payload.execution_mode is not None:
+        project.execution_mode = payload.execution_mode
 
     if payload.username is not None or payload.password is not None:
         if not project.credentials:
