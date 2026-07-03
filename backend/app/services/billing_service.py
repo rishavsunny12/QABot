@@ -95,6 +95,8 @@ class BillingService:
         return plan
 
     async def ensure_team_subscription(self, db: AsyncSession, team_id: str) -> TeamSubscription:
+        if not settings.billing_enabled:
+            raise ValueError("Billing is disabled")
         existing = (
             await db.execute(
                 select(TeamSubscription)
@@ -120,6 +122,8 @@ class BillingService:
         return subscription
 
     async def get_subscription(self, db: AsyncSession, team_id: str) -> TeamSubscription:
+        if not settings.billing_enabled:
+            raise ValueError("Billing is disabled")
         subscription = await self.ensure_team_subscription(db, team_id)
         if not subscription.plan:
             await db.refresh(subscription, attribute_names=["plan"])
@@ -147,6 +151,8 @@ class BillingService:
         return int(result.scalar_one())
 
     async def get_usage_for_team(self, db: AsyncSession, team_id: str) -> dict[str, Any]:
+        if not settings.billing_enabled:
+            raise ValueError("Billing is disabled")
         subscription = await self.get_subscription(db, team_id)
         period_start = subscription.current_period_start
         period_end = subscription.current_period_end
@@ -208,6 +214,8 @@ class BillingService:
         quantity: int = 1,
         project_id: str | None = None,
     ) -> None:
+        if not settings.billing_enabled:
+            return
         if quantity <= 0:
             return
         event = UsageEvent(

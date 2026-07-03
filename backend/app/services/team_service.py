@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.auth_deps import AuthenticatedUser
+from app.core.config import settings
 from app.core.logging import get_logger
 from app.models import Team, TeamMember, TeamRole, User
 from app.services.billing_service import billing_service
@@ -57,7 +58,9 @@ class TeamService:
             db.add(membership)
             await db.flush()
 
-        await billing_service.ensure_team_subscription(db, team.id)
+        await db.flush()
+        if settings.billing_enabled:
+            await billing_service.ensure_team_subscription(db, team.id)
         await db.commit()
         refreshed = (
             await db.execute(
@@ -95,7 +98,8 @@ class TeamService:
         )
         db.add(membership)
         await db.flush()
-        await billing_service.ensure_team_subscription(db, team.id)
+        if settings.billing_enabled:
+            await billing_service.ensure_team_subscription(db, team.id)
         logger.log("team_created", f"Team {name} created", team_id=team.id, user_id=user.id)
         return team, membership
 

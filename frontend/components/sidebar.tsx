@@ -30,7 +30,9 @@ const links = [
   { href: "/schedules", label: "Schedules", icon: CalendarClock },
   { href: "/visual-regression", label: "Visual Regression", icon: ScanEye },
   { href: "/runs", label: "Run History", icon: History },
-  { href: "/billing", label: "Billing", icon: CreditCard },
+  ...(process.env.NEXT_PUBLIC_BILLING_ENABLED === "true"
+    ? [{ href: "/billing", label: "Billing", icon: CreditCard }]
+    : []),
   { href: "/settings", label: "Settings", icon: LayoutDashboard },
 ];
 

@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.services.billing_service import QuotaExceededError, billing_service
 
 
@@ -10,6 +11,8 @@ async def enforce_team_quota(
     metric: str,
     quantity: int = 1,
 ) -> None:
+    if not settings.billing_enabled:
+        return
     if not team_id:
         return
     try:
@@ -33,6 +36,8 @@ async def record_team_usage(
     quantity: int = 1,
     project_id: str | None = None,
 ) -> None:
+    if not settings.billing_enabled:
+        return
     if not team_id:
         return
     await billing_service.record_usage(db, team_id, metric, quantity, project_id)

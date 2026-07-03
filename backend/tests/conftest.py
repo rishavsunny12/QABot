@@ -10,6 +10,7 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("AUTH_MODE", "disabled")
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-key-for-unit-tests-only")
 os.environ.setdefault("BILLING_ENFORCEMENT", "false")
+os.environ.setdefault("BILLING_ENABLED", "false")
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
@@ -21,7 +22,8 @@ async def prepare_database():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
-    async with AsyncSessionLocal() as db:
-        await billing_service.ensure_plans(db)
+    if os.environ.get("BILLING_ENABLED", "false").lower() == "true":
+        async with AsyncSessionLocal() as db:
+            await billing_service.ensure_plans(db)
     yield
     await engine.dispose()

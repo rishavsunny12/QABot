@@ -19,8 +19,9 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     artifact_service.base_dir.mkdir(parents=True, exist_ok=True)
-    async with AsyncSessionLocal() as db:
-        await billing_service.ensure_plans(db)
+    if settings.billing_enabled:
+        async with AsyncSessionLocal() as db:
+            await billing_service.ensure_plans(db)
     yield
 
 

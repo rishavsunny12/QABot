@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import AuthenticatedUser, get_current_user
+from app.core.config import settings
 from app.core.database import get_db
 from app.models import TeamRole
 from app.services.access_service import access_service
@@ -54,6 +55,8 @@ async def _require_team_member(team_id: str, auth: AuthenticatedUser, db: AsyncS
 
 @router.get("/plans", response_model=list[BillingPlanResponse])
 async def list_plans(db: AsyncSession = Depends(get_db)):
+    if not settings.billing_enabled:
+        raise HTTPException(status_code=404, detail="Billing is not enabled in this deployment")
     from sqlalchemy import select
 
     from app.models import BillingPlan
@@ -77,6 +80,8 @@ async def get_team_billing(
     auth: AuthenticatedUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if not settings.billing_enabled:
+        raise HTTPException(status_code=404, detail="Billing is not enabled in this deployment")
     await _require_team_member(team_id, auth, db)
     await billing_service.ensure_plans(db)
     summary = await billing_service.get_usage_for_team(db, team_id)
@@ -105,6 +110,8 @@ async def change_team_plan(
     auth: AuthenticatedUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if not settings.billing_enabled:
+        raise HTTPException(status_code=404, detail="Billing is not enabled in this deployment")
     membership = await _require_team_member(team_id, auth, db)
     if membership.role not in {TeamRole.OWNER.value, TeamRole.ADMIN.value}:
         raise HTTPException(status_code=403, detail="Requires admin role")

@@ -37,7 +37,11 @@ class ArtifactService:
         path = Path(relative_path)
         if not path.is_absolute():
             path = self.base_dir / relative_path
-        return path.resolve()
+        resolved = path.resolve()
+        base = self.base_dir.resolve()
+        if not resolved.is_relative_to(base):
+            raise ValueError(f"Artifact path escapes storage root: {relative_path}")
+        return resolved
 
     def to_relative(self, absolute_path: str | Path) -> str:
         abs_path = Path(absolute_path).resolve()

@@ -7,22 +7,29 @@ from app.main import app
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_list_billing_plans():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/api/billing/plans")
-        assert response.status_code == 200
-        plans = response.json()
-        assert len(plans) >= 3
-        slugs = {p["slug"] for p in plans}
-        assert "free" in slugs
-        assert "pro" in slugs
+    original_enabled = settings.billing_enabled
+    settings.billing_enabled = True
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/billing/plans")
+            assert response.status_code == 200
+            plans = response.json()
+            assert len(plans) >= 3
+            slugs = {p["slug"] for p in plans}
+            assert "free" in slugs
+            assert "pro" in slugs
+    finally:
+        settings.billing_enabled = original_enabled
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_team_billing_usage_summary():
     original_mode = settings.auth_mode
     original_billing = settings.billing_enforcement
+    original_enabled = settings.billing_enabled
     settings.auth_mode = "dev"
     settings.billing_enforcement = True
+    settings.billing_enabled = True
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             login = await client.post(
@@ -41,12 +48,15 @@ async def test_team_billing_usage_summary():
     finally:
         settings.auth_mode = original_mode
         settings.billing_enforcement = original_billing
+        settings.billing_enabled = original_enabled
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_change_plan():
     original_mode = settings.auth_mode
+    original_enabled = settings.billing_enabled
     settings.auth_mode = "dev"
+    settings.billing_enabled = True
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             login = await client.post(
@@ -65,3 +75,12 @@ async def test_change_plan():
             assert change.json()["plan"]["slug"] == "pro"
     finally:
         settings.auth_mode = original_mode
+        settings.billing_enabled = original_enabled
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_billing_disabled_by_default():
+    assert settings.billing_enabled is False
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/billing/plans")
+        assert response.status_code == 404
