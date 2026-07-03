@@ -183,8 +183,7 @@ async def test_healing_and_failure_endpoints_exist():
         assert result.status_code == 404
 
         healing = await client.get("/api/results/nonexistent-id/healing-suggestions")
-        assert healing.status_code == 200
-        assert healing.json() == []
+        assert healing.status_code == 404
 
         run = await client.get("/api/runs/nonexistent-id")
         assert run.status_code == 404

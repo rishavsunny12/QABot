@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.access import authorize_project
+from app.core.auth_deps import AuthenticatedUser, get_current_user
 from app.core.database import get_db
-from app.models import VisualComparisonResult
+from app.models import TeamRole, VisualComparisonResult
 from app.schemas import (
     VisualBaselineResponse,
     VisualComparisonResultResponse,
@@ -18,7 +21,12 @@ router = APIRouter(tags=["visual-regression"])
 
 
 @router.post("/projects/{project_id}/visual-baselines/capture", response_model=list[VisualBaselineResponse])
-async def capture_baselines(project_id: str, db: AsyncSession = Depends(get_db)):
+async def capture_baselines(
+    project_id: str,
+    auth: AuthenticatedUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await authorize_project(db, auth, project_id, TeamRole.MEMBER)
     try:
         baselines = await visual_regression_service.capture_baselines_from_crawl(db, project_id)
     except ValueError as exc:
@@ -38,7 +46,12 @@ async def capture_baselines(project_id: str, db: AsyncSession = Depends(get_db))
 
 
 @router.get("/projects/{project_id}/visual-baselines", response_model=list[VisualBaselineResponse])
-async def list_baselines(project_id: str, db: AsyncSession = Depends(get_db)):
+async def list_baselines(
+    project_id: str,
+    auth: AuthenticatedUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await authorize_project(db, auth, project_id, TeamRole.VIEWER)
     baselines = await visual_regression_service.list_baselines(db, project_id)
     return [
         VisualBaselineResponse(
@@ -58,8 +71,10 @@ async def list_baselines(project_id: str, db: AsyncSession = Depends(get_db)):
 async def start_visual_run(
     project_id: str,
     payload: VisualRunRequest | None = None,
+    auth: AuthenticatedUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    await authorize_project(db, auth, project_id, TeamRole.MEMBER)
     threshold = payload.threshold_percent if payload else 1.0
     baselines = await visual_regression_service.list_baselines(db, project_id)
     if not baselines:
@@ -69,7 +84,12 @@ async def start_visual_run(
 
 
 @router.get("/projects/{project_id}/visual-regression/runs", response_model=list[VisualComparisonRunResponse])
-async def list_visual_runs(project_id: str, db: AsyncSession = Depends(get_db)):
+async def list_visual_runs(
+    project_id: str,
+    auth: AuthenticatedUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await authorize_project(db, auth, project_id, TeamRole.VIEWER)
     runs = await visual_regression_service.list_runs(db, project_id)
     return [
         VisualComparisonRunResponse(
@@ -87,10 +107,15 @@ async def list_visual_runs(project_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/visual-regression/runs/{run_id}", response_model=VisualComparisonRunResponse)
-async def get_visual_run(run_id: str, db: AsyncSession = Depends(get_db)):
+async def get_visual_run(
+    run_id: str,
+    auth: AuthenticatedUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     run = await visual_regression_service.get_run_with_results(db, run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Visual run not found")
+    await authorize_project(db, auth, run.project_id, TeamRole.VIEWER)
     return VisualComparisonRunResponse(
         id=run.id,
         project_id=run.project_id,
@@ -118,14 +143,22 @@ async def get_visual_run(run_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/visual-regression/results/{result_id}/artifacts/{artifact_type}")
-async def get_visual_artifact(result_id: str, artifact_type: str, db: AsyncSession = Depends(get_db)):
-    from sqlalchemy import select
-
+async def get_visual_artifact(
+    result_id: str,
+    artifact_type: str,
+    auth: AuthenticatedUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     result = (
         await db.execute(select(VisualComparisonResult).where(VisualComparisonResult.id == result_id))
     ).scalar_one_or_none()
     if not result:
         raise HTTPException(status_code=404, detail="Result not found")
+
+    run = await visual_regression_service.get_run_with_results(db, result.run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Visual run not found")
+    await authorize_project(db, auth, run.project_id, TeamRole.VIEWER)
 
     path_map = {
         "baseline": result.baseline_path,

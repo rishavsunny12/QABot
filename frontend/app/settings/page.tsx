@@ -4,10 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import { useActiveProject } from "@/lib/hooks";
 
 export default function SettingsPage() {
   const { data: project } = useActiveProject();
+  const { canAdmin, canEdit, activeTeamId } = useAuth();
   const queryClient = useQueryClient();
   const [parallelWorkers, setParallelWorkers] = useState(1);
   const [executionMode, setExecutionMode] = useState<"local" | "farm">("local");
@@ -33,6 +35,19 @@ export default function SettingsPage() {
   const deleteMutation = useMutation({
     mutationFn: () => api.deleteProject(project!.id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
+  });
+
+  const { data: teamMembers } = useQuery({
+    queryKey: ["team-members", activeTeamId],
+    queryFn: () => api.listTeamMembers(activeTeamId!),
+    enabled: !!activeTeamId && canAdmin,
+  });
+
+  const addMemberMutation = useMutation({
+    mutationFn: ({ email, role }: { email: string; role: string }) =>
+      api.addTeamMember(activeTeamId!, email, role),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["team-members", activeTeamId] }),
   });
 
   const settingsMutation = useMutation({
@@ -69,28 +84,56 @@ export default function SettingsPage() {
           <div><span className="text-gray-400">Credentials:</span> {project.has_credentials ? "Configured" : "None"}</div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
-            className="btn-secondary"
-            onClick={() => crawlMutation.mutate()}
-            disabled={crawlMutation.isPending}
-          >
-            Re-run Discovery Crawl
-          </button>
-          <button
-            className="btn-secondary inline-flex items-center gap-2 text-red-300"
-            onClick={() => {
-              if (confirm(`Delete project "${project.name}" and all its data?`)) {
-                deleteMutation.mutate();
-              }
-            }}
-            disabled={deleteMutation.isPending}
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete Project
-          </button>
+          {canEdit && (
+            <button
+              className="btn-secondary"
+              onClick={() => crawlMutation.mutate()}
+              disabled={crawlMutation.isPending}
+            >
+              Re-run Discovery Crawl
+            </button>
+          )}
+          {canAdmin && (
+            <button
+              className="btn-secondary inline-flex items-center gap-2 text-red-300"
+              onClick={() => {
+                if (confirm(`Delete project "${project.name}" and all its data?`)) {
+                  deleteMutation.mutate();
+                }
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Project
+            </button>
+          )}
         </div>
       </div>
 
+      {canAdmin && activeTeamId && (
+        <div className="card space-y-4">
+          <h2 className="text-xl font-semibold">Team Members</h2>
+          <ul className="space-y-2 text-sm">
+            {(teamMembers || []).map((member) => (
+              <li key={member.id} className="flex justify-between rounded-lg bg-black/20 px-3 py-2">
+                <span>{member.name} ({member.email})</span>
+                <span className="badge-neutral">{member.role}</span>
+              </li>
+            ))}
+          </ul>
+          <button
+            className="btn-secondary"
+            onClick={() => {
+              const email = prompt("Member email");
+              if (email) addMemberMutation.mutate({ email, role: "member" });
+            }}
+          >
+            Invite member
+          </button>
+        </div>
+      )}
+
+      {canAdmin && (
       <div className="card space-y-4">
         <h2 className="text-xl font-semibold">Parallel Test Execution</h2>
         <p className="text-sm text-gray-400">
@@ -146,6 +189,7 @@ export default function SettingsPage() {
           Save Execution Settings
         </button>
       </div>
+      )}
 
       <div className="card space-y-2 text-sm text-gray-400">
         <h2 className="text-xl font-semibold text-white">Environment</h2>

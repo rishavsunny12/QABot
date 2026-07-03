@@ -1,5 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.core.auth_deps import AuthenticatedUser, get_current_user
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.schemas import ExecutionWorkersResponse
@@ -10,7 +11,7 @@ logger = get_logger("ExecutionRouter")
 
 
 @router.get("/workers", response_model=ExecutionWorkersResponse)
-async def get_worker_pool_status():
+async def get_worker_pool_status(auth: AuthenticatedUser = Depends(get_current_user)):
     active_workers = 0
     try:
         inspect = celery_app.control.inspect(timeout=1.0)

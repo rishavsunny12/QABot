@@ -38,7 +38,7 @@ export default function VisualRegressionPage() {
   });
 
   const runMutation = useMutation({
-    mutationFn: () => api.runVisualRegression(project!.id, threshold),
+    mutationFn: () => api.startVisualRun(project!.id, threshold),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["visual-runs"] }),
   });
 

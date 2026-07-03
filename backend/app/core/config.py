@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta, timezone
+
+import jwt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,5 +22,26 @@ class Settings(BaseSettings):
     max_parallel_workers: int = 8
     log_level: str = "INFO"
 
+    auth_mode: str = "dev"
+    jwt_secret: str = "change-me-in-production-use-long-random-string"
+    jwt_algorithm: str = "HS256"
+    jwt_exp_hours: int = 24
+    session_cookie_name: str = "autoqa_session"
+    frontend_url: str = "http://localhost:3000"
+    oidc_client_id: str = ""
+    oidc_client_secret: str = ""
+    oidc_discovery_url: str = ""
+    oidc_redirect_uri: str = "http://localhost:8000/api/auth/callback"
+
 
 settings = Settings()
+
+
+def create_access_token(user_id: str, email: str) -> str:
+    expires = datetime.now(timezone.utc) + timedelta(hours=settings.jwt_exp_hours)
+    payload = {"sub": user_id, "email": email, "exp": expires}
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def decode_access_token(token: str) -> dict:
+    return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
