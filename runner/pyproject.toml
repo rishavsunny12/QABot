@@ -1,0 +1,17 @@
+[project]
+name = "autoqa-runner"
+version = "0.1.0"
+description = "Playwright runner utilities for AutoQA Agent"
+requires-python = ">=3.12"
+dependencies = [
+    "playwright>=1.49.0",
+    "jinja2>=3.1.4",
+]
+
+[build-system]
+requires = ["setuptools>=75.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["playwright_utils*"]

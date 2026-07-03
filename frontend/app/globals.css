@@ -1,0 +1,56 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+:root {
+  --background: 222 47% 6%;
+  --foreground: 210 40% 98%;
+  --card: 222 47% 9%;
+  --border: 217 19% 20%;
+  --primary: 217 91% 60%;
+  --muted: 215 16% 47%;
+}
+
+body {
+  @apply bg-[hsl(var(--background))] text-[hsl(var(--foreground))] min-h-screen;
+}
+
+.card {
+  @apply rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 shadow-lg;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors;
+}
+
+.btn-primary {
+  @apply btn bg-blue-600 text-white hover:bg-blue-500;
+}
+
+.btn-secondary {
+  @apply btn border border-[hsl(var(--border))] hover:bg-white/5;
+}
+
+.input {
+  @apply w-full rounded-lg border border-[hsl(var(--border))] bg-black/20 px-3 py-2 text-sm outline-none focus:border-blue-500;
+}
+
+.badge {
+  @apply inline-flex rounded-full px-2 py-0.5 text-xs font-medium;
+}
+
+.badge-success {
+  @apply badge bg-green-500/20 text-green-300;
+}
+
+.badge-danger {
+  @apply badge bg-red-500/20 text-red-300;
+}
+
+.badge-warning {
+  @apply badge bg-yellow-500/20 text-yellow-300;
+}
+
+.badge-neutral {
+  @apply badge bg-white/10 text-gray-300;
+}
