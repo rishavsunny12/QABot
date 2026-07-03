@@ -63,6 +63,53 @@ class Team(Base):
 
     members: Mapped[list["TeamMember"]] = relationship(back_populates="team")
     projects: Mapped[list["Project"]] = relationship(back_populates="team")
+    subscription: Mapped["TeamSubscription | None"] = relationship(back_populates="team")
+    usage_events: Mapped[list["UsageEvent"]] = relationship(back_populates="team")
+
+
+class BillingPlan(Base):
+    __tablename__ = "billing_plans"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    slug: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    price_cents: Mapped[int] = mapped_column(Integer, default=0)
+    limits_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    subscriptions: Mapped[list["TeamSubscription"]] = relationship(back_populates="plan")
+
+
+class TeamSubscription(Base):
+    __tablename__ = "team_subscriptions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    team_id: Mapped[str] = mapped_column(ForeignKey("teams.id"), unique=True, index=True)
+    plan_id: Mapped[str] = mapped_column(ForeignKey("billing_plans.id"), index=True)
+    status: Mapped[str] = mapped_column(String(30), default="active")
+    current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    current_period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    team: Mapped["Team"] = relationship(back_populates="subscription")
+    plan: Mapped["BillingPlan"] = relationship(back_populates="subscriptions")
+
+
+class UsageEvent(Base):
+    __tablename__ = "usage_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    team_id: Mapped[str] = mapped_column(ForeignKey("teams.id"), index=True)
+    metric: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, default=1)
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    team: Mapped["Team"] = relationship(back_populates="usage_events")
 
 
 class TeamMember(Base):

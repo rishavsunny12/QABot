@@ -4,6 +4,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.billing_helpers import enforce_team_quota, record_team_usage
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.models import GeneratedTest, Project, TestRun, TestRunResult
@@ -42,6 +43,7 @@ class TestExecutionService:
             raise ValueError("No tests found to run")
 
         project = (await db.execute(select(Project).where(Project.id == project_id))).scalar_one()
+        await enforce_team_quota(db, project.team_id, "test_runs", quantity=1)
         parallel_workers = self.resolve_parallel_workers(project)
         execution_mode = self.resolve_execution_mode(project)
 
@@ -56,6 +58,7 @@ class TestExecutionService:
         )
         db.add(test_run)
         await db.flush()
+        await record_team_usage(db, project.team_id, "test_runs", quantity=1, project_id=project_id)
         await db.commit()
         return test_run, project, list(tests)
 

@@ -139,6 +139,14 @@ export const api = {
     `${API_URL}/api/results/${resultId}/artifacts/${type}`,
   getExecutionWorkers: () =>
     request<import("./types").ExecutionWorkers>("/api/execution/workers"),
+  listBillingPlans: () => request<import("./types").BillingPlan[]>("/api/billing/plans"),
+  getTeamBilling: (teamId: string) =>
+    request<import("./types").TeamBilling>(`/api/billing/teams/${teamId}`),
+  changeTeamPlan: (teamId: string, planSlug: string) =>
+    request<import("./types").TeamBilling>(`/api/billing/teams/${teamId}/change-plan`, {
+      method: "POST",
+      body: JSON.stringify({ plan_slug: planSlug }),
+    }),
 };
 
 export { API_URL };

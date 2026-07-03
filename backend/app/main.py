@@ -4,11 +4,12 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import auth, crawl, execution, healing, projects, runs, schedules, teams, tests, visual_regression
+from app.api.routers import auth, billing, crawl, execution, healing, projects, runs, schedules, teams, tests, visual_regression
 from app.core.auth_deps import AuthenticatedUser, get_current_user
 from app.core.config import settings
-from app.core.database import Base, engine
+from app.core.database import AsyncSessionLocal, Base, engine
 from app.services.artifact_service import artifact_service
+from app.services.billing_service import billing_service
 
 logging.basicConfig(level=settings.log_level)
 
@@ -18,6 +19,8 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     artifact_service.base_dir.mkdir(parents=True, exist_ok=True)
+    async with AsyncSessionLocal() as db:
+        await billing_service.ensure_plans(db)
     yield
 
 
@@ -34,6 +37,7 @@ app.add_middleware(
 app.include_router(projects.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(teams.router, prefix="/api")
+app.include_router(billing.router, prefix="/api")
 app.include_router(crawl.router, prefix="/api")
 app.include_router(tests.router, prefix="/api")
 app.include_router(runs.router, prefix="/api")

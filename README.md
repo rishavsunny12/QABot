@@ -177,6 +177,14 @@ Projects belong to teams. Roles (`viewer`, `member`, `admin`, `owner`) control a
 
 Configure OIDC with `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, and `OIDC_DISCOVERY_URL`.
 
+### Billing & Usage Metering
+Teams are assigned a billing plan (`free`, `pro`, `enterprise`) with monthly usage limits. Usage is tracked for test runs, crawl pages, AI analysis calls, visual comparisons, and active projects. Exceeding a limit returns HTTP 402. Set `BILLING_ENFORCEMENT=false` to disable quota checks in development.
+
+- `GET /api/billing/plans` — List available plans
+- `GET /api/billing/teams/{id}` — Current usage vs limits
+- `POST /api/billing/teams/{id}/change-plan` — Upgrade/downgrade (MVP, no payment yet)
+- `POST /api/billing/stripe/webhook` — Stripe webhook stub for future integration
+
 ## API Endpoints
 
 - `POST /api/projects` — Create project
@@ -238,7 +246,7 @@ pytest backend/tests runner/tests -v
 - [x] Visual regression testing
 - [x] Browser farm / parallel execution
 - [x] Enterprise SSO and team roles
-- [ ] Billing and usage metering
+- [x] Billing and usage metering
 
 ## License
 
