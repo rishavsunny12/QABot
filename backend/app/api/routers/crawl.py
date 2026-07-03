@@ -1,10 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.access import authorize_project
+from app.api.billing_helpers import enforce_team_quota
+from app.core.auth_deps import AuthenticatedUser, get_current_user
+from app.core.config import settings
 from app.core.database import get_db
-from app.models import Flow, Page, PageTransition, Project
+from app.models import Flow, Page, PageTransition, TeamRole
 from app.schemas import (
     CrawlStatusResponse,
     FlowGraphResponse,
@@ -21,10 +25,13 @@ router = APIRouter(tags=["crawl"])
 
 
 @router.post("/projects/{project_id}/crawl")
-async def start_crawl(project_id: str, db: AsyncSession = Depends(get_db)):
-    project = (await db.execute(select(Project).where(Project.id == project_id))).scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+async def start_crawl(
+    project_id: str,
+    auth: AuthenticatedUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    project = await authorize_project(db, auth, project_id, TeamRole.MEMBER)
+    await enforce_team_quota(db, project.team_id, "crawl_pages", settings.crawl_max_pages)
 
     task = run_crawl_task.delay(project_id)
     project.crawl_status = "queued"
@@ -34,10 +41,12 @@ async def start_crawl(project_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/projects/{project_id}/crawl-status", response_model=CrawlStatusResponse)
-async def crawl_status(project_id: str, db: AsyncSession = Depends(get_db)):
-    project = (await db.execute(select(Project).where(Project.id == project_id))).scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+async def crawl_status(
+    project_id: str,
+    auth: AuthenticatedUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    project = await authorize_project(db, auth, project_id, TeamRole.VIEWER)
     return CrawlStatusResponse(
         status=project.crawl_status,
         job_id=project.crawl_job_id,
@@ -47,7 +56,12 @@ async def crawl_status(project_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/projects/{project_id}/pages", response_model=list[PageResponse])
-async def list_pages(project_id: str, db: AsyncSession = Depends(get_db)):
+async def list_pages(
+    project_id: str,
+    auth: AuthenticatedUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await authorize_project(db, auth, project_id, TeamRole.VIEWER)
     result = await db.execute(
         select(Page)
         .options(selectinload(Page.elements))
@@ -82,7 +96,12 @@ async def list_pages(project_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/projects/{project_id}/flows", response_model=list[FlowResponse])
-async def list_flows(project_id: str, db: AsyncSession = Depends(get_db)):
+async def list_flows(
+    project_id: str,
+    auth: AuthenticatedUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await authorize_project(db, auth, project_id, TeamRole.VIEWER)
     result = await db.execute(
         select(Flow)
         .options(selectinload(Flow.steps))
@@ -115,7 +134,12 @@ async def list_flows(project_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/projects/{project_id}/flow-graph", response_model=FlowGraphResponse)
-async def flow_graph(project_id: str, db: AsyncSession = Depends(get_db)):
+async def flow_graph(
+    project_id: str,
+    auth: AuthenticatedUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await authorize_project(db, auth, project_id, TeamRole.VIEWER)
     pages = (
         await db.execute(select(Page).where(Page.project_id == project_id))
     ).scalars().all()

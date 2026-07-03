@@ -9,8 +9,67 @@ export interface Project {
   crawl_pages_count: number;
   crawl_elements_count: number;
   has_credentials: boolean;
+  parallel_workers: number;
+  execution_mode: "local" | "farm";
+  team_id: string | null;
+  user_role: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface AuthConfig {
+  mode: string;
+  oidc_configured: boolean;
+  dev_login_enabled: boolean;
+}
+
+export interface TeamMembership {
+  team_id: string;
+  team_name: string;
+  team_slug: string;
+  role: string;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url: string | null;
+  teams: TeamMembership[];
+}
+
+export interface TeamMember {
+  id: string;
+  user_id: string;
+  email: string;
+  name: string;
+  role: string;
+}
+
+export interface BillingPlan {
+  slug: string;
+  name: string;
+  price_cents: number;
+  limits: {
+    test_runs?: number | null;
+    crawl_pages?: number | null;
+    ai_calls?: number | null;
+    visual_comparisons?: number | null;
+    projects?: number | null;
+  };
+}
+
+export interface MetricUsage {
+  used: number;
+  limit: number | null;
+}
+
+export interface TeamBilling {
+  team_id: string;
+  plan: BillingPlan;
+  period_start: string;
+  period_end: string;
+  usage: Record<string, MetricUsage>;
 }
 
 export interface CrawlStatus {
@@ -87,9 +146,18 @@ export interface TestRun {
   started_at: string | null;
   completed_at: string | null;
   triggered_by: string;
+  parallel_workers: number | null;
+  execution_mode: string | null;
   pass_count: number;
   fail_count: number;
   total_count: number;
+}
+
+export interface ExecutionWorkers {
+  mode: string;
+  active_workers: number;
+  max_parallel_workers: number;
+  default_parallel_workers: number;
 }
 
 export interface TestRunResult {
@@ -116,4 +184,51 @@ export interface HealingSuggestion {
   rationale: string | null;
   approved: boolean | null;
   created_at: string;
+}
+
+export interface TestSchedule {
+  id: string;
+  project_id: string;
+  name: string;
+  interval_minutes: number;
+  test_ids: string[] | null;
+  enabled: boolean;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VisualBaseline {
+  id: string;
+  project_id: string;
+  page_id: string | null;
+  url: string;
+  label: string | null;
+  screenshot_path: string;
+  captured_at: string;
+}
+
+export interface VisualComparisonResult {
+  id: string;
+  run_id: string;
+  baseline_id: string;
+  page_url: string;
+  baseline_path: string;
+  current_path: string;
+  diff_path: string | null;
+  diff_percent: number;
+  status: string;
+}
+
+export interface VisualComparisonRun {
+  id: string;
+  project_id: string;
+  status: string;
+  threshold_percent: number;
+  pass_count: number;
+  fail_count: number;
+  started_at: string;
+  completed_at: string | null;
+  results?: VisualComparisonResult[];
 }

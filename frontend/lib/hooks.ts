@@ -1,12 +1,22 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { useProjectContext } from "@/lib/project-context";
 
 export function useActiveProject() {
-  return useQuery({
-    queryKey: ["projects"],
-    queryFn: api.listProjects,
-    select: (projects) => projects[0] ?? null,
-  });
+  const { activeProject, activeProjectId, isLoading, projects, setActiveProjectId, refetchProjects } =
+    useProjectContext();
+
+  return {
+    data: activeProject,
+    isLoading,
+    projects,
+    activeProjectId,
+    setActiveProjectId,
+    refetchProjects,
+  };
+}
+
+export function useProjects() {
+  const { projects, isLoading, refetchProjects } = useProjectContext();
+  return { projects, isLoading, refetchProjects };
 }

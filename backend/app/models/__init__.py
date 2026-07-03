@@ -25,6 +25,106 @@ def new_uuid() -> str:
     return str(uuid.uuid4())
 
 
+class TeamRole(str, enum.Enum):
+    OWNER = "owner"
+    ADMIN = "admin"
+    MEMBER = "member"
+    VIEWER = "viewer"
+
+
+ROLE_RANK = {
+    TeamRole.VIEWER.value: 1,
+    TeamRole.MEMBER.value: 2,
+    TeamRole.ADMIN.value: 3,
+    TeamRole.OWNER.value: 4,
+}
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    sso_subject: Mapped[str | None] = mapped_column(String(512), unique=True, nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    memberships: Mapped[list["TeamMember"]] = relationship(back_populates="user")
+
+
+class Team(Base):
+    __tablename__ = "teams"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    slug: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    members: Mapped[list["TeamMember"]] = relationship(back_populates="team")
+    projects: Mapped[list["Project"]] = relationship(back_populates="team")
+    subscription: Mapped["TeamSubscription | None"] = relationship(back_populates="team")
+    usage_events: Mapped[list["UsageEvent"]] = relationship(back_populates="team")
+
+
+class BillingPlan(Base):
+    __tablename__ = "billing_plans"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    slug: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    price_cents: Mapped[int] = mapped_column(Integer, default=0)
+    limits_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    subscriptions: Mapped[list["TeamSubscription"]] = relationship(back_populates="plan")
+
+
+class TeamSubscription(Base):
+    __tablename__ = "team_subscriptions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    team_id: Mapped[str] = mapped_column(ForeignKey("teams.id"), unique=True, index=True)
+    plan_id: Mapped[str] = mapped_column(ForeignKey("billing_plans.id"), index=True)
+    status: Mapped[str] = mapped_column(String(30), default="active")
+    current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    current_period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    team: Mapped["Team"] = relationship(back_populates="subscription")
+    plan: Mapped["BillingPlan"] = relationship(back_populates="subscriptions")
+
+
+class UsageEvent(Base):
+    __tablename__ = "usage_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    team_id: Mapped[str] = mapped_column(ForeignKey("teams.id"), index=True)
+    metric: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, default=1)
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    team: Mapped["Team"] = relationship(back_populates="usage_events")
+
+
+class TeamMember(Base):
+    __tablename__ = "team_members"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    team_id: Mapped[str] = mapped_column(ForeignKey("teams.id"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    role: Mapped[str] = mapped_column(String(20), default=TeamRole.MEMBER.value)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    team: Mapped["Team"] = relationship(back_populates="members")
+    user: Mapped["User"] = relationship(back_populates="memberships")
+
+
 class Project(Base):
     __tablename__ = "projects"
 
@@ -38,16 +138,91 @@ class Project(Base):
     crawl_job_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     crawl_pages_count: Mapped[int] = mapped_column(Integer, default=0)
     crawl_elements_count: Mapped[int] = mapped_column(Integer, default=0)
+    parallel_workers: Mapped[int] = mapped_column(Integer, default=1)
+    execution_mode: Mapped[str] = mapped_column(String(20), default="local")
+    team_id: Mapped[str | None] = mapped_column(ForeignKey("teams.id"), index=True, nullable=True)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
 
     credentials: Mapped["ProjectCredential | None"] = relationship(back_populates="project")
+    team: Mapped["Team | None"] = relationship(back_populates="projects")
     pages: Mapped[list["Page"]] = relationship(back_populates="project")
     flows: Mapped[list["Flow"]] = relationship(back_populates="project")
     generated_tests: Mapped[list["GeneratedTest"]] = relationship(back_populates="project")
     test_runs: Mapped[list["TestRun"]] = relationship(back_populates="project")
+    schedules: Mapped[list["TestSchedule"]] = relationship(back_populates="project")
+    visual_baselines: Mapped[list["VisualBaseline"]] = relationship(back_populates="project")
+    visual_runs: Mapped[list["VisualComparisonRun"]] = relationship(back_populates="project")
+
+
+class VisualBaseline(Base):
+    __tablename__ = "visual_baselines"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    page_id: Mapped[str | None] = mapped_column(ForeignKey("pages.id"), nullable=True)
+    url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    screenshot_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    project: Mapped["Project"] = relationship(back_populates="visual_baselines")
+
+
+class VisualComparisonRun(Base):
+    __tablename__ = "visual_comparison_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    status: Mapped[str] = mapped_column(String(50), default="running")
+    threshold_percent: Mapped[float] = mapped_column(Float, default=1.0)
+    pass_count: Mapped[int] = mapped_column(Integer, default=0)
+    fail_count: Mapped[int] = mapped_column(Integer, default=0)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    project: Mapped["Project"] = relationship(back_populates="visual_runs")
+    results: Mapped[list["VisualComparisonResult"]] = relationship(back_populates="run")
+
+
+class VisualComparisonResult(Base):
+    __tablename__ = "visual_comparison_results"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    run_id: Mapped[str] = mapped_column(ForeignKey("visual_comparison_runs.id"), index=True)
+    baseline_id: Mapped[str] = mapped_column(ForeignKey("visual_baselines.id"), index=True)
+    page_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    baseline_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    current_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    diff_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    diff_percent: Mapped[float] = mapped_column(Float, default=0.0)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+
+    run: Mapped["VisualComparisonRun"] = relationship(back_populates="results")
+
+
+class TestSchedule(Base):
+    __tablename__ = "test_schedules"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    interval_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=60)
+    test_ids_json: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    project: Mapped["Project"] = relationship(back_populates="schedules")
 
 
 class ProjectCredential(Base):
@@ -167,6 +342,8 @@ class TestRun(Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     triggered_by: Mapped[str] = mapped_column(String(100), default="user")
+    parallel_workers: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    execution_mode: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     project: Mapped["Project"] = relationship(back_populates="test_runs")
     results: Mapped[list["TestRunResult"]] = relationship(back_populates="test_run")

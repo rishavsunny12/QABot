@@ -1,8 +1,10 @@
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
-from app.models import GeneratedTest, TestRunResult
+from app.models import GeneratedTest, Project, TestRunResult
 from app.services.ai_client import ai_client
+from app.services.billing_service import billing_service
 
 logger = get_logger("FailureAnalysisService")
 
@@ -27,12 +29,14 @@ class FailureAnalysisService:
         test: GeneratedTest,
     ) -> str:
         if ai_client.enabled:
-            summary = await self._ai_analyze(result, test)
+            summary = await self._ai_analyze(db, result, test)
             if summary:
                 return summary
         return self._fallback_summary(result)
 
-    async def _ai_analyze(self, result: TestRunResult, test: GeneratedTest) -> str:
+    async def _ai_analyze(
+        self, db: AsyncSession, result: TestRunResult, test: GeneratedTest
+    ) -> str:
         system = (
             "You are a QA failure analyst. Return JSON with keys: "
             "summary (string), root_cause (string), confidence (0-1 float), "
@@ -47,6 +51,12 @@ class FailureAnalysisService:
         data = await ai_client.complete_json(system, user)
         if not data:
             return self._fallback_summary(result)
+
+        project = (
+            await db.execute(select(Project).where(Project.id == test.project_id))
+        ).scalar_one_or_none()
+        if project and project.team_id:
+            await billing_service.record_usage(db, project.team_id, "ai_calls", project_id=test.project_id)
 
         result.failure_category = data.get("category", result.failure_category)
         return (

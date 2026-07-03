@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, "cursor/**"]
+    branches: [main, "cursor/**", "oss-v1-release", "billing-usage-metering", "enterprise-sso-teams"]
   pull_request:
     branches: [main]
 

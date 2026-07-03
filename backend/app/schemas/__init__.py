@@ -13,6 +13,7 @@ class ProjectCreate(BaseModel):
     auth_strategy: str = "form"
     allowed_domains: list[str] = Field(default_factory=list)
     seed_urls: list[str] = Field(default_factory=list)
+    team_id: str | None = None
 
 
 class ProjectUpdate(BaseModel):
@@ -24,6 +25,8 @@ class ProjectUpdate(BaseModel):
     auth_strategy: str | None = None
     allowed_domains: list[str] | None = None
     seed_urls: list[str] | None = None
+    parallel_workers: int | None = Field(default=None, ge=1, le=8)
+    execution_mode: str | None = Field(default=None, pattern="^(local|farm)$")
 
 
 class ProjectResponse(BaseModel):
@@ -37,6 +40,10 @@ class ProjectResponse(BaseModel):
     crawl_pages_count: int
     crawl_elements_count: int
     has_credentials: bool
+    parallel_workers: int = 1
+    execution_mode: str = "local"
+    team_id: str | None = None
+    user_role: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -121,11 +128,20 @@ class TestRunResponse(BaseModel):
     started_at: datetime | None
     completed_at: datetime | None
     triggered_by: str
+    parallel_workers: int | None = None
+    execution_mode: str | None = None
     pass_count: int = 0
     fail_count: int = 0
     total_count: int = 0
 
     model_config = {"from_attributes": True}
+
+
+class ExecutionWorkersResponse(BaseModel):
+    mode: str
+    active_workers: int
+    max_parallel_workers: int
+    default_parallel_workers: int
 
 
 class TestRunResultResponse(BaseModel):
@@ -183,3 +199,76 @@ class FlowGraphResponse(BaseModel):
     nodes: list[GraphNode]
     edges: list[GraphEdge]
     flows: list[FlowResponse]
+
+
+class ScheduleCreate(BaseModel):
+    name: str
+    interval_minutes: int = Field(ge=5, le=10080)
+    test_ids: list[str] | None = None
+    enabled: bool = True
+
+
+class ScheduleUpdate(BaseModel):
+    name: str | None = None
+    interval_minutes: int | None = Field(default=None, ge=5, le=10080)
+    test_ids: list[str] | None = None
+    enabled: bool | None = None
+
+
+class ScheduleResponse(BaseModel):
+    id: str
+    project_id: str
+    name: str
+    interval_minutes: int
+    test_ids: list[str] | None
+    enabled: bool
+    last_run_at: datetime | None
+    next_run_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class VisualBaselineResponse(BaseModel):
+    id: str
+    project_id: str
+    page_id: str | None
+    url: str
+    label: str | None
+    screenshot_path: str
+    captured_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class VisualComparisonResultResponse(BaseModel):
+    id: str
+    run_id: str
+    baseline_id: str
+    page_url: str
+    baseline_path: str
+    current_path: str
+    diff_path: str | None
+    diff_percent: float
+    status: str
+
+    model_config = {"from_attributes": True}
+
+
+class VisualComparisonRunResponse(BaseModel):
+    id: str
+    project_id: str
+    status: str
+    threshold_percent: float
+    pass_count: int
+    fail_count: int
+    started_at: datetime
+    completed_at: datetime | None
+    results: list[VisualComparisonResultResponse] = Field(default_factory=list)
+
+    model_config = {"from_attributes": True}
+
+
+class VisualRunRequest(BaseModel):
+    threshold_percent: float = Field(default=1.0, ge=0.0, le=100.0)
