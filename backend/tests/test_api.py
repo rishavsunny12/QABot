@@ -4,7 +4,7 @@ from httpx import ASGITransport, AsyncClient
 from app.main import app
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="session")
 async def test_health():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/health")
@@ -12,7 +12,7 @@ async def test_health():
     assert response.json()["status"] == "ok"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_and_list_projects():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         create = await client.post(
