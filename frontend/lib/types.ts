@@ -11,8 +11,39 @@ export interface Project {
   has_credentials: boolean;
   parallel_workers: number;
   execution_mode: "local" | "farm";
+  team_id: string | null;
+  user_role: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface AuthConfig {
+  mode: string;
+  oidc_configured: boolean;
+  dev_login_enabled: boolean;
+}
+
+export interface TeamMembership {
+  team_id: string;
+  team_name: string;
+  team_slug: string;
+  role: string;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url: string | null;
+  teams: TeamMembership[];
+}
+
+export interface TeamMember {
+  id: string;
+  user_id: string;
+  email: string;
+  name: string;
+  role: string;
 }
 
 export interface CrawlStatus {

@@ -13,6 +13,7 @@ class ProjectCreate(BaseModel):
     auth_strategy: str = "form"
     allowed_domains: list[str] = Field(default_factory=list)
     seed_urls: list[str] = Field(default_factory=list)
+    team_id: str | None = None
 
 
 class ProjectUpdate(BaseModel):
@@ -41,6 +42,8 @@ class ProjectResponse(BaseModel):
     has_credentials: bool
     parallel_workers: int = 1
     execution_mode: str = "local"
+    team_id: str | None = None
+    user_role: str | None = None
     created_at: datetime
     updated_at: datetime
 

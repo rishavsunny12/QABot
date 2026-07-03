@@ -2,6 +2,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
+    credentials: "include",
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -19,7 +20,31 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  listProjects: () => request<import("./types").Project[]>("/api/projects"),
+  getAuthConfig: () => request<import("./types").AuthConfig>("/api/auth/config"),
+  getMe: () => request<import("./types").AuthUser>("/api/auth/me"),
+  devLogin: (email: string, name?: string) =>
+    request<import("./types").AuthUser>("/api/auth/dev-login", {
+      method: "POST",
+      body: JSON.stringify({ email, name }),
+    }),
+  logout: () => request<{ status: string }>("/api/auth/logout", { method: "POST" }),
+  listTeams: () => request<import("./types").TeamMembership[]>("/api/teams"),
+  createTeam: (name: string) =>
+    request<{ id: string; name: string; slug: string; role: string }>("/api/teams", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  listTeamMembers: (teamId: string) =>
+    request<import("./types").TeamMember[]>(`/api/teams/${teamId}/members`),
+  addTeamMember: (teamId: string, email: string, role: string) =>
+    request<import("./types").TeamMember>(`/api/teams/${teamId}/members`, {
+      method: "POST",
+      body: JSON.stringify({ email, role }),
+    }),
+  listProjects: (teamId?: string | null) =>
+    request<import("./types").Project[]>(
+      teamId ? `/api/projects?team_id=${encodeURIComponent(teamId)}` : "/api/projects"
+    ),
   getProject: (id: string) => request<import("./types").Project>(`/api/projects/${id}`),
   createProject: (data: Record<string, unknown>) =>
     request<import("./types").Project>("/api/projects", {
@@ -31,6 +56,8 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
+  deleteProject: (id: string) =>
+    request<void>(`/api/projects/${id}`, { method: "DELETE" }),
   startCrawl: (id: string) =>
     request<{ job_id: string; status: string }>(`/api/projects/${id}/crawl`, { method: "POST" }),
   crawlStatus: (id: string) =>
@@ -45,7 +72,10 @@ export const api = {
     }),
   listTests: (id: string) => request<import("./types").GeneratedTest[]>(`/api/projects/${id}/tests`),
   exportTest: async (id: string) => {
-    const res = await fetch(`${API_URL}/api/tests/${id}/export`, { method: "POST" });
+    const res = await fetch(`${API_URL}/api/tests/${id}/export`, {
+      method: "POST",
+      credentials: "include",
+    });
     return res.text();
   },
   runTests: (id: string, testIds?: string[]) =>
@@ -67,8 +97,6 @@ export const api = {
     request<import("./types").HealingSuggestion>(`/api/healing-suggestions/${id}/reject`, {
       method: "POST",
     }),
-  deleteProject: (id: string) =>
-    request<void>(`/api/projects/${id}`, { method: "DELETE" }),
   listSchedules: (projectId: string) =>
     request<import("./types").TestSchedule[]>(`/api/projects/${projectId}/schedules`),
   createSchedule: (projectId: string, data: Record<string, unknown>) =>
@@ -92,11 +120,11 @@ export const api = {
     ),
   listVisualBaselines: (projectId: string) =>
     request<import("./types").VisualBaseline[]>(`/api/projects/${projectId}/visual-baselines`),
-  runVisualRegression: (projectId: string, thresholdPercent = 1.0) =>
-    request<{ job_id: string; status: string }>(
-      `/api/projects/${projectId}/visual-regression/run`,
-      { method: "POST", body: JSON.stringify({ threshold_percent: thresholdPercent }) }
-    ),
+  startVisualRun: (projectId: string, thresholdPercent?: number) =>
+    request<{ job_id: string }>(`/api/projects/${projectId}/visual-regression/run`, {
+      method: "POST",
+      body: JSON.stringify({ threshold_percent: thresholdPercent ?? 1.0 }),
+    }),
   listVisualRuns: (projectId: string) =>
     request<import("./types").VisualComparisonRun[]>(
       `/api/projects/${projectId}/visual-regression/runs`

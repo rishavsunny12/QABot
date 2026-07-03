@@ -163,6 +163,20 @@ docker compose up --build --scale worker=3
 ### Selector Healing
 When selector drift is detected, alternatives are ranked from crawl history. Suggestions require explicit user approval before updating generated specs.
 
+### Authentication & Teams
+AutoQA supports three auth modes via `AUTH_MODE`:
+- **`disabled`** — open access with a system user (local dev / tests)
+- **`dev`** — email-based dev login with JWT session cookies
+- **`oidc`** — enterprise SSO via OpenID Connect (Google Workspace, Okta, Azure AD)
+
+Projects belong to teams. Roles (`viewer`, `member`, `admin`, `owner`) control access:
+- **viewer** — read-only dashboards and results
+- **member** — run crawls, tests, and visual comparisons
+- **admin** — update settings, manage schedules, approve healing, delete projects
+- **owner** — full team administration including member invites
+
+Configure OIDC with `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, and `OIDC_DISCOVERY_URL`.
+
 ## API Endpoints
 
 - `POST /api/projects` — Create project
@@ -223,7 +237,7 @@ pytest backend/tests runner/tests -v
 - [x] Scheduled test runs
 - [x] Visual regression testing
 - [x] Browser farm / parallel execution
-- [ ] Enterprise SSO and team roles
+- [x] Enterprise SSO and team roles
 - [ ] Billing and usage metering
 
 ## License

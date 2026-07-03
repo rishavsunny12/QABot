@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import type { Project } from "@/lib/types";
 
@@ -26,12 +27,13 @@ interface ProjectContextValue {
 const ProjectContext = createContext<ProjectContextValue | null>(null);
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
+  const { activeTeamId } = useAuth();
   const [activeProjectId, setActiveProjectIdState] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   const { data: projects = [], isLoading, refetch } = useQuery({
-    queryKey: ["projects"],
-    queryFn: api.listProjects,
+    queryKey: ["projects", activeTeamId],
+    queryFn: () => api.listProjects(activeTeamId),
   });
 
   useEffect(() => {

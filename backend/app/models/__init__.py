@@ -25,6 +25,59 @@ def new_uuid() -> str:
     return str(uuid.uuid4())
 
 
+class TeamRole(str, enum.Enum):
+    OWNER = "owner"
+    ADMIN = "admin"
+    MEMBER = "member"
+    VIEWER = "viewer"
+
+
+ROLE_RANK = {
+    TeamRole.VIEWER.value: 1,
+    TeamRole.MEMBER.value: 2,
+    TeamRole.ADMIN.value: 3,
+    TeamRole.OWNER.value: 4,
+}
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    sso_subject: Mapped[str | None] = mapped_column(String(512), unique=True, nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    memberships: Mapped[list["TeamMember"]] = relationship(back_populates="user")
+
+
+class Team(Base):
+    __tablename__ = "teams"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    slug: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    members: Mapped[list["TeamMember"]] = relationship(back_populates="team")
+    projects: Mapped[list["Project"]] = relationship(back_populates="team")
+
+
+class TeamMember(Base):
+    __tablename__ = "team_members"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    team_id: Mapped[str] = mapped_column(ForeignKey("teams.id"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    role: Mapped[str] = mapped_column(String(20), default=TeamRole.MEMBER.value)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    team: Mapped["Team"] = relationship(back_populates="members")
+    user: Mapped["User"] = relationship(back_populates="memberships")
+
+
 class Project(Base):
     __tablename__ = "projects"
 
@@ -40,12 +93,17 @@ class Project(Base):
     crawl_elements_count: Mapped[int] = mapped_column(Integer, default=0)
     parallel_workers: Mapped[int] = mapped_column(Integer, default=1)
     execution_mode: Mapped[str] = mapped_column(String(20), default="local")
+    team_id: Mapped[str | None] = mapped_column(ForeignKey("teams.id"), index=True, nullable=True)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
 
     credentials: Mapped["ProjectCredential | None"] = relationship(back_populates="project")
+    team: Mapped["Team | None"] = relationship(back_populates="projects")
     pages: Mapped[list["Page"]] = relationship(back_populates="project")
     flows: Mapped[list["Flow"]] = relationship(back_populates="project")
     generated_tests: Mapped[list["GeneratedTest"]] = relationship(back_populates="project")
