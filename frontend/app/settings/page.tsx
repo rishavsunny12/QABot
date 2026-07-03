@@ -1,13 +1,29 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useActiveProject } from "@/lib/hooks";
 
 export default function SettingsPage() {
   const { data: project } = useActiveProject();
   const queryClient = useQueryClient();
+  const [parallelWorkers, setParallelWorkers] = useState(1);
+  const [executionMode, setExecutionMode] = useState<"local" | "farm">("local");
+
+  const { data: workers } = useQuery({
+    queryKey: ["execution-workers"],
+    queryFn: () => api.getExecutionWorkers(),
+    refetchInterval: 15000,
+  });
+
+  useEffect(() => {
+    if (project) {
+      setParallelWorkers(project.parallel_workers);
+      setExecutionMode(project.execution_mode);
+    }
+  }, [project]);
 
   const crawlMutation = useMutation({
     mutationFn: () => api.startCrawl(project!.id),
@@ -16,6 +32,15 @@ export default function SettingsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: () => api.deleteProject(project!.id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
+  });
+
+  const settingsMutation = useMutation({
+    mutationFn: () =>
+      api.updateProject(project!.id, {
+        parallel_workers: parallelWorkers,
+        execution_mode: executionMode,
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
   });
 
@@ -64,6 +89,62 @@ export default function SettingsPage() {
             Delete Project
           </button>
         </div>
+      </div>
+
+      <div className="card space-y-4">
+        <h2 className="text-xl font-semibold">Parallel Test Execution</h2>
+        <p className="text-sm text-gray-400">
+          Run multiple Playwright specs concurrently. Use farm mode to distribute tests across Celery workers.
+        </p>
+
+        <div className="space-y-2">
+          <label className="text-sm text-gray-300">Parallel workers (local mode)</label>
+          <input
+            type="range"
+            min={1}
+            max={workers?.max_parallel_workers || 8}
+            value={parallelWorkers}
+            onChange={(e) => setParallelWorkers(Number(e.target.value))}
+            className="w-full"
+          />
+          <div className="text-sm text-gray-400">{parallelWorkers} concurrent browser(s)</div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm text-gray-300">Execution mode</label>
+          <div className="flex gap-2">
+            <button
+              className={executionMode === "local" ? "btn-primary" : "btn-secondary"}
+              onClick={() => setExecutionMode("local")}
+            >
+              Local parallel
+            </button>
+            <button
+              className={executionMode === "farm" ? "btn-primary" : "btn-secondary"}
+              onClick={() => setExecutionMode("farm")}
+            >
+              Browser farm
+            </button>
+          </div>
+          <p className="text-xs text-gray-500">
+            Farm mode fans out each test to Celery workers. Scale with{" "}
+            <code>docker compose up --scale worker=3</code>.
+          </p>
+        </div>
+
+        {workers && (
+          <div className="rounded-lg bg-gray-900/50 p-3 text-sm text-gray-400">
+            Celery workers online: <span className="text-white">{workers.active_workers}</span>
+          </div>
+        )}
+
+        <button
+          className="btn-primary"
+          onClick={() => settingsMutation.mutate()}
+          disabled={settingsMutation.isPending}
+        >
+          Save Execution Settings
+        </button>
       </div>
 
       <div className="card space-y-2 text-sm text-gray-400">

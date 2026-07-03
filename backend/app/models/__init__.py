@@ -38,6 +38,8 @@ class Project(Base):
     crawl_job_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     crawl_pages_count: Mapped[int] = mapped_column(Integer, default=0)
     crawl_elements_count: Mapped[int] = mapped_column(Integer, default=0)
+    parallel_workers: Mapped[int] = mapped_column(Integer, default=1)
+    execution_mode: Mapped[str] = mapped_column(String(20), default="local")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
@@ -235,6 +237,8 @@ class TestRun(Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     triggered_by: Mapped[str] = mapped_column(String(100), default="user")
+    parallel_workers: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    execution_mode: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     project: Mapped["Project"] = relationship(back_populates="test_runs")
     results: Mapped[list["TestRunResult"]] = relationship(back_populates="test_run")

@@ -31,6 +31,7 @@ export default function RunsPage() {
               <th className="pb-3 pr-4">Run ID</th>
               <th className="pb-3 pr-4">Status</th>
               <th className="pb-3 pr-4">Pass/Fail</th>
+              <th className="pb-3 pr-4">Execution</th>
               <th className="pb-3 pr-4">Started</th>
               <th className="pb-3">Actions</th>
             </tr>
@@ -47,6 +48,10 @@ export default function RunsPage() {
                 <td className="py-3 pr-4">
                   <span className="badge-success">{run.pass_count} pass</span>{" "}
                   <span className="badge-danger">{run.fail_count} fail</span>
+                </td>
+                <td className="py-3 pr-4 text-gray-400 text-xs">
+                  {run.execution_mode || "local"}
+                  {run.parallel_workers ? ` (${run.parallel_workers})` : ""}
                 </td>
                 <td className="py-3 pr-4 text-gray-400">
                   {run.started_at ? new Date(run.started_at).toLocaleString() : "-"}

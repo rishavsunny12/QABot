@@ -131,6 +131,8 @@ autoqa-agent/
 | `ARTIFACTS_DIR` | Artifact storage path |
 | `CRAWL_MAX_PAGES` | Max pages per crawl (default: 50) |
 | `CRAWL_MAX_DEPTH` | Max crawl depth (default: 3) |
+| `DEFAULT_PARALLEL_WORKERS` | Default concurrent browsers per run (default: 4) |
+| `MAX_PARALLEL_WORKERS` | Upper limit for project parallel setting (default: 8) |
 | `NEXT_PUBLIC_API_URL` | Frontend → backend API URL |
 
 Generate a Fernet key:
@@ -152,6 +154,12 @@ Flows are converted into readable Playwright `.spec.ts` files using locator APIs
 ### Test Execution
 Tests are queued via Celery, executed by the Playwright runner, and results (pass/fail, duration, artifacts) are persisted. Failures trigger AI analysis and selector healing suggestions.
 
+**Local parallel mode** runs multiple specs concurrently in one worker process using a thread pool. **Browser farm mode** fans out each test as a separate Celery task so multiple worker containers can execute tests in parallel. Configure per-project in Settings, or scale workers with:
+
+```bash
+docker compose up --build --scale worker=3
+```
+
 ### Selector Healing
 When selector drift is detected, alternatives are ranked from crawl history. Suggestions require explicit user approval before updating generated specs.
 
@@ -166,6 +174,8 @@ When selector drift is detected, alternatives are ranked from crawl history. Sug
 - `GET /api/runs/{id}/results` — Get run results
 - `GET /api/results/{id}/healing-suggestions` — List healing suggestions
 - `POST /api/healing-suggestions/{id}/approve` — Approve healing
+- `GET /api/execution/workers` — Celery worker pool status
+- `PATCH /api/projects/{id}` — Update project (including parallel execution settings)
 
 Full API docs at `/docs` when the backend is running.
 
@@ -212,7 +222,7 @@ pytest backend/tests runner/tests -v
 - [x] Multi-project workspace UI
 - [x] Scheduled test runs
 - [x] Visual regression testing
-- [ ] Browser farm / parallel execution
+- [x] Browser farm / parallel execution
 - [ ] Enterprise SSO and team roles
 - [ ] Billing and usage metering
 

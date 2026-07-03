@@ -24,6 +24,8 @@ class ProjectUpdate(BaseModel):
     auth_strategy: str | None = None
     allowed_domains: list[str] | None = None
     seed_urls: list[str] | None = None
+    parallel_workers: int | None = Field(default=None, ge=1, le=8)
+    execution_mode: str | None = Field(default=None, pattern="^(local|farm)$")
 
 
 class ProjectResponse(BaseModel):
@@ -37,6 +39,8 @@ class ProjectResponse(BaseModel):
     crawl_pages_count: int
     crawl_elements_count: int
     has_credentials: bool
+    parallel_workers: int = 1
+    execution_mode: str = "local"
     created_at: datetime
     updated_at: datetime
 
@@ -121,11 +125,20 @@ class TestRunResponse(BaseModel):
     started_at: datetime | None
     completed_at: datetime | None
     triggered_by: str
+    parallel_workers: int | None = None
+    execution_mode: str | None = None
     pass_count: int = 0
     fail_count: int = 0
     total_count: int = 0
 
     model_config = {"from_attributes": True}
+
+
+class ExecutionWorkersResponse(BaseModel):
+    mode: str
+    active_workers: int
+    max_parallel_workers: int
+    default_parallel_workers: int
 
 
 class TestRunResultResponse(BaseModel):

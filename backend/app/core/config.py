@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     artifacts_dir: str = "./artifacts"
     crawl_max_pages: int = 50
     crawl_max_depth: int = 3
+    default_parallel_workers: int = 4
+    max_parallel_workers: int = 8
     log_level: str = "INFO"
 
 
